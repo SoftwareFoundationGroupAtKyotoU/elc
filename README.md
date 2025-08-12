@@ -20,6 +20,10 @@ The name Elc also stands for *E*rgonomic *l*ogic for *c*oding. Elc
 aims to provide a new programmer-friendly way to develop robust, logically
 verified programs.
 
+## Code
+
+- [`elc-proc`](./elc-proc): Procedural macros for Elc
+
 ## Current status
 
 Elc is designed and developed by
