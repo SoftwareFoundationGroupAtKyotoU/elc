@@ -2,7 +2,7 @@
 name = "elc-proc"
 version = "0.1.0"
 edition = "2024"
-authors = ["Yusuke Matsushita"]
+authors = ["Yusuke Matsushita <ysk.m24t@gmail.com>"]
 repository = "https://github.com/SoftwareFoundationGroupAtKyotoU/elc"
 description = "Procedural macros for Elc"
 
