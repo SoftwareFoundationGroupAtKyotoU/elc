@@ -22,7 +22,9 @@ verified programs.
 
 ## Code
 
+- [`elcc`](./elcc/): Elc compiler based on rustc
 - [`elc-proc`](./elc-proc): Procedural macros for Elc
+- [`elc-examples`](./elc-examples/): Examples for Elc
 
 ## Current status
 
