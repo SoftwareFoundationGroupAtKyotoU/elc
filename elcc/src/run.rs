@@ -127,7 +127,13 @@ pub fn run(cli: &Cli, last_args: &Vec<String>, force_init: bool) {
 /// Body executed by `after_analysis`
 fn run_body(cli: &Cli, tcx: TyCtxt) {
     println!("Running elcc...");
-    let _ = cli;
-    let _ = tcx;
+    println!("...Enumerating MIR keys...");
+    for id in tcx.mir_keys(()) {
+        let id = id.to_def_id();
+        let path = tcx.def_path(id);
+        debug_println!(cli, "MIR key {:?}", path);
+        let path_str = tcx.def_path_str(id);
+        println!("  {}", path_str);
+    }
     println!("...Not implemented yet, sorry!");
 }
