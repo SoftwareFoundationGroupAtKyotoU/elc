@@ -44,34 +44,65 @@ fn exec_command_with_stderr<F: FnMut(String) -> ()>(
 }
 
 /// Parse environment variables
-fn parse_env(cli: &Cli, env: &str) -> String {
+fn parse_env(cli: &Cli, mut env: &str) -> String {
     debug_println!(cli, "Parsing environment variables: {}", env);
-    let mut env: &str = &format!("{} ", env);
     let mut res = String::new();
-    while env.contains('=') {
-        // !env.is_empty()
+    loop {
         let eq_idx = env
             .find('=')
             .unwrap_or_else(|| panic!("Cannot find '=' in {}", env));
         let key = &env[..eq_idx];
+        key.chars().for_each(|c| {
+            assert!(
+                c.is_ascii_alphanumeric() || c == '_',
+                "Parsed key contains a character '{ }' not alphanumeric or '_': {}",
+                c,
+                key
+            )
+        });
         env = &env[eq_idx + 1..];
-        let val;
+        let mut val;
         if env.chars().nth(0) == Some('\'') {
-            // TODO: Analyze escaped quotes
-            let close_idx = env[1..]
-                .find("\' ")
-                .unwrap_or_else(|| panic!("Unclosed quote in {}", env));
-            val = &env[..close_idx + 2];
-            env = &env[close_idx + 3..];
+            let env_start = env;
+            let mut env_chars = env[1..].chars();
+            val = "'".to_owned();
+            loop {
+                let c = env_chars
+                    .next()
+                    .unwrap_or_else(|| panic!("Closing quote not found in {}", env_start));
+                val.push(c);
+                if c == '\'' {
+                    break;
+                }
+                if c == '\\' {
+                    // TODO: Support multiple characters
+                    val.push(
+                        env_chars
+                            .next()
+                            .unwrap_or_else(|| panic!("Orphan '\\' in {}", env_start)),
+                    );
+                }
+            }
+            env = env_chars.as_str();
         } else {
-            let close_idx = env
-                .find(' ')
-                .unwrap_or_else(|| panic!("Cannot find ' ' in {}", env));
-            val = &env[..close_idx];
-            env = &env[close_idx + 1..];
+            if let Some(close_idx) = env.find(' ') {
+                val = env[..close_idx].to_owned();
+                env = &env[close_idx..];
+            } else {
+                val = env.to_owned();
+                env = &env[env.len()..];
+            }
         };
         debug_println!(cli, "Found {} {}", key, val);
-        res.push_str(&format!("{} = {}\n", key, val));
+        res.push_str(&format!("{}={}\n", key, val));
+        if env.is_empty() {
+            break;
+        }
+        assert!(
+            env.chars().nth(0) == Some(' '),
+            "Key-value pair not ending with ' '"
+        );
+        env = &env[1..];
     }
     res
 }
@@ -134,7 +165,18 @@ fn get_settings(cli: &Cli) -> String {
 }
 
 /// Perform the init command
-pub fn init(cli: &Cli) {
+pub fn init(cli: &Cli, force: bool) {
+    if !force {
+        if fs::exists(RUSTC_SETTINGS_PATH).unwrap_or_else(|err| {
+            panic!(
+                "Error in checking if `{}` exists: {}",
+                RUSTC_SETTINGS_PATH, err
+            )
+        }) {
+            println!("Already initialized. Pass -f or --force to force re-initialization.");
+            return;
+        }
+    }
     println!("Initializing for elcc...");
     println!("...Running `cargo check` to check the whole crate...");
     exec_command(Command::new("cargo").arg("check"));

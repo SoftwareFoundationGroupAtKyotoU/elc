@@ -1,6 +1,7 @@
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
+use snailquote::unescape;
 use std::env;
 use std::fs;
 
@@ -34,7 +35,7 @@ impl Callbacks for Entry<'_> {
 fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String> {
     let rustc_settings = String::from_utf8(fs::read(RUSTC_SETTINGS_PATH).unwrap_or_else(|err| {
         debug_println!(cli, "Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err);
-        init(cli);
+        init(cli, false);
         fs::read(RUSTC_SETTINGS_PATH)
             .unwrap_or_else(|err| panic!("Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err))
     }))
@@ -43,10 +44,11 @@ fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String>
     let rustc_options = rustc_settings.next_back().expect("No lines found!");
     rustc_settings.for_each(|line| {
         let idx = line
-            .find(" = ")
-            .unwrap_or_else(|| panic!("Could not found \" = \" in {}", line));
+            .find("=")
+            .unwrap_or_else(|| panic!("Could not found \"=\" in {}", line));
         let key = &line[..idx];
-        let val = &line[idx + 3..];
+        let val =
+            unescape(&line[idx + 1..]).unwrap_or_else(|err| panic!("Failed to unescape: {}", err));
         debug_println!(cli, "Set {} = {}", key, val);
         unsafe {
             env::set_var(key, val);

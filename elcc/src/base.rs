@@ -18,7 +18,11 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Initialize
-    Init,
+    Init {
+        /// Force initialization
+        #[arg(short, long)]
+        force: bool,
+    },
     /// Run the static verifier
     Run {
         /// Path to the Rust source file
