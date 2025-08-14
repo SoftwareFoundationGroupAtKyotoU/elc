@@ -15,9 +15,7 @@ use crate::run::run;
 
 fn main() {
     let cli = parse_cli();
-    if cli.debug {
-        println!("# Cli argument: {:?}", cli);
-    }
+    debug_println!(cli, "Cli argument: {:?}", cli);
     match &cli.command {
         Command::Init => init(&cli),
         Command::Run { rs_path, last_args } => run(&cli, rs_path, last_args),

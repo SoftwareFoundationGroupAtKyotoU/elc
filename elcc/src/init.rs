@@ -5,6 +5,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
 use crate::base::{Cli, RUSTC_SETTINGS_PATH};
+use crate::debug_println;
 
 /// Execute a command, streaming stdout and stderr
 fn exec_command(command: &mut Command) {
@@ -44,9 +45,7 @@ fn exec_command_with_stderr<F: FnMut(String) -> ()>(
 
 /// Parse environment variables
 fn parse_env(cli: &Cli, env: &str) -> String {
-    if cli.debug {
-        println!("# Parsing environment variables: {}", env);
-    }
+    debug_println!(cli, "Parsing environment variables: {}", env);
     let mut env: &str = &format!("{} ", env);
     let mut res = String::new();
     while env.contains('=') {
@@ -71,9 +70,7 @@ fn parse_env(cli: &Cli, env: &str) -> String {
             val = &env[..close_idx];
             env = &env[close_idx + 1..];
         };
-        if cli.debug {
-            println!("# Found {} {}", key, val);
-        }
+        debug_println!(cli, "Found {} {}", key, val);
         res.push_str(&format!("{} = {}\n", key, val));
     }
     res
@@ -108,28 +105,28 @@ fn get_settings(cli: &Cli) -> String {
         }
         if let Some(capture) = LINE_REGEX.captures(line.as_str()) {
             let (_, [rustc_env, rustc_name, rustc_args]) = capture.extract();
-            if cli.debug {
-                println!(
-                    "# Found a rustc command: \n#  {}\n#  {}\n#  {}",
-                    rustc_env, rustc_name, rustc_args
-                );
-            }
+            debug_println!(
+                cli,
+                "Found a rustc command: \n#  {}\n#  {}\n#  {}",
+                rustc_env,
+                rustc_name,
+                rustc_args
+            );
             let (_, [prefix, rs_path, postfix]) = ARGS_REGEX
                 .captures(rustc_args)
                 .unwrap_or_else(|| panic!("Failed to parse rustc arguments `{}`", rustc_args))
                 .extract();
-            if cli.debug {
-                println!(
-                    "# Parsed command:\n#  {}\n#  {}\n#  {}",
-                    prefix, rs_path, postfix
-                );
-            }
+            debug_println!(
+                cli,
+                "Parsed command:\n#   {}\n#   {}\n#   {}",
+                prefix,
+                rs_path,
+                postfix
+            );
             let rustc_options = modify_rustc_options(format!("{} {}", prefix, postfix));
             let mut rustc_settings_ = parse_env(cli, rustc_env);
             rustc_settings_.push_str(&rustc_options);
-            if cli.debug {
-                println!("# Recorded settings:\n{}", rustc_settings_);
-            }
+            debug_println!(cli, "Recorded settings:\n{}", rustc_settings_);
             rustc_settings = Some(rustc_settings_);
         }
     });

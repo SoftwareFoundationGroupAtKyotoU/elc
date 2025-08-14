@@ -38,4 +38,15 @@ pub fn parse_cli() -> Cli {
     cli
 }
 
+/// File path for rustc settings
 pub const RUSTC_SETTINGS_PATH: &str = "target/debug/elcc-rustc-settings";
+
+/// Print for debugging
+#[macro_export]
+macro_rules! debug_println {
+    ($cli:expr, $fmt:expr $(, $args:expr)* $(,)?) => {
+        if $cli.debug {
+            println!(concat!("# ", $fmt) $(, $args)*);
+        }
+    };
+}

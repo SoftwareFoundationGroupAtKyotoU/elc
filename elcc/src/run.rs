@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 
 use crate::base::{Cli, RUSTC_SETTINGS_PATH};
+use crate::debug_println;
 use crate::init::init;
 
 /// Argument passed to [`run_compiler`]
@@ -32,9 +33,7 @@ impl Callbacks for Entry<'_> {
 /// Set up the environment variables and construct the arguments for `rustc`
 fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String> {
     let rustc_settings = String::from_utf8(fs::read(RUSTC_SETTINGS_PATH).unwrap_or_else(|err| {
-        if cli.debug {
-            println!("# Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err);
-        }
+        debug_println!(cli, "Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err);
         init(cli);
         fs::read(RUSTC_SETTINGS_PATH)
             .unwrap_or_else(|err| panic!("Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err))
@@ -48,9 +47,7 @@ fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String>
             .unwrap_or_else(|| panic!("Could not found \" = \" in {}", line));
         let key = &line[..idx];
         let val = &line[idx + 3..];
-        if cli.debug {
-            println!("# Set {} = {}", key, val);
-        }
+        debug_println!(cli, "Set {} = {}", key, val);
         unsafe {
             env::set_var(key, val);
         }
@@ -66,9 +63,7 @@ fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String>
 /// Perform the `run` command
 pub fn run(cli: &Cli, rs_path: &str, last_args: &Vec<String>) {
     let rustc_args = rustc_setup(cli, rs_path, last_args);
-    if cli.debug {
-        println!("# Arguments to rustc: {:?}", rustc_args);
-    }
+    debug_println!(cli, "Arguments to rustc: {:?}", rustc_args);
     println!("Running rustc...");
     run_compiler(&rustc_args, &mut Entry { cli: &cli });
 }
