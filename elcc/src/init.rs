@@ -43,13 +43,13 @@ fn exec_command_with_stderr<F: FnMut(String) -> ()>(
     }
 }
 
-/// Modify rustc options
-fn modify_rustc_options(rustc_options: String) -> String {
+/// Modify rustc arguments
+fn modify_rustc_args(rustc_args: String) -> String {
     lazy_static! {
         static ref JSON_REGEX: Regex = Regex::new("--json=\\S* ").unwrap();
     }
     // Disable json output
-    let rustc_options = rustc_options.replace("--error-format=json ", "");
+    let rustc_options = rustc_args.replace("--error-format=json ", "");
     let rustc_options = JSON_REGEX.replace_all(&rustc_options, "");
     // Hacky replacement: A workaround
     rustc_options.replace(", ", ",").replace("'", "")
@@ -61,7 +61,6 @@ fn get_settings(cli: &Cli) -> String {
     lazy_static! {
         static ref STDERR_REGEX: Regex =
             Regex::new("\\n     Running `((?:.|\\n)+) (\\S*?rustc) (.+?)`\\n").unwrap();
-        static ref ARGS_REGEX: Regex = Regex::new("^(.*?) src/(.*?)\\.rs (.*?)$").unwrap();
     }
     let mut stderr = String::new();
     exec_command_with_stderr(Command::new("cargo").args(["check", "-vv"]), &mut |line| {
@@ -75,33 +74,18 @@ fn get_settings(cli: &Cli) -> String {
         .captures(&stderr)
         .unwrap_or_else(|| panic!("Could not find a rustc command in:\n{}", stderr))
         .extract();
-    debug_println!(
-        cli,
-        "Found a rustc command: \n#  {}\n#  {}\n#  {}",
-        rustc_env,
-        rustc_name,
+    debug_println!(cli, "Found a rustc command:");
+    debug_println!(cli, "  Environment: {}", rustc_env);
+    debug_println!(cli, "  Rustc: {}", rustc_name);
+    debug_println!(cli, "  Arguments: {}", rustc_args);
+    assert!(
+        rustc_args.chars().all(|c| c != '\n'),
+        "Parsed arguments contain a new line: {}",
         rustc_args
     );
-    debug_println!(cli, "Recorded env:\n{}", rustc_env);
-    let (_, [prefix, rs_path, postfix]) = ARGS_REGEX
-        .captures(rustc_args)
-        .unwrap_or_else(|| panic!("Failed to parse rustc arguments `{}`", rustc_args))
-        .extract();
-    debug_println!(
-        cli,
-        "Parsed command:\n#   {}\n#   {}\n#   {}",
-        prefix,
-        rs_path,
-        postfix
-    );
-    let rustc_options = modify_rustc_options(format!("{} {}", prefix, postfix));
-    debug_println!(cli, "Recorded options:\n{}", rustc_options);
-    assert!(
-        rustc_options.chars().all(|c| c != '\n'),
-        "Options contains a new line: {}",
-        rustc_options
-    );
-    format!("{}\n{}", rustc_options, rustc_env)
+    let rustc_args = modify_rustc_args(rustc_args.to_owned());
+    debug_println!(cli, "Modified arguments: {}", rustc_args);
+    format!("{}\n{}", rustc_args, rustc_env)
 }
 
 /// Perform the init command

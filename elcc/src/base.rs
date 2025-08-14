@@ -25,8 +25,6 @@ pub enum Command {
     },
     /// Run the static verifier
     Run {
-        /// Path to the Rust source file
-        rs_path: String,
         /// Arguments to Rust variables
         #[arg(last = true)]
         last_args: Vec<String>,

@@ -18,6 +18,6 @@ fn main() {
     debug_println!(cli, "Cli argument: {:?}", cli);
     match &cli.command {
         Command::Init { force } => init(&cli, *force),
-        Command::Run { rs_path, last_args } => run(&cli, rs_path, last_args),
+        Command::Run { last_args } => run(&cli, last_args),
     }
 }

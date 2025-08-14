@@ -88,7 +88,7 @@ fn process_env(cli: &Cli, mut env: &str) {
 }
 
 /// Set up the environment variables and construct the arguments for `rustc`
-fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String> {
+fn rustc_setup(cli: &Cli, last_args: &Vec<String>) -> Vec<String> {
     let rustc_settings = String::from_utf8(fs::read(RUSTC_SETTINGS_PATH).unwrap_or_else(|err| {
         debug_println!(cli, "Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err);
         init(cli, false);
@@ -105,7 +105,7 @@ fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String>
     let rustc_options = &rustc_settings[0..sep_idx];
     let rustc_env = &rustc_settings[sep_idx + 1..];
     process_env(cli, rustc_env);
-    let mut args = vec!["rustc".to_owned(), rs_path.to_owned()];
+    let mut args = vec!["rustc".to_owned()];
     rustc_options
         .split_ascii_whitespace()
         .for_each(|s| args.push(s.to_string()));
@@ -114,8 +114,8 @@ fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String>
 }
 
 /// Perform the `run` command
-pub fn run(cli: &Cli, rs_path: &str, last_args: &Vec<String>) {
-    let rustc_args = rustc_setup(cli, rs_path, last_args);
+pub fn run(cli: &Cli, last_args: &Vec<String>) {
+    let rustc_args = rustc_setup(cli, last_args);
     debug_println!(cli, "Arguments to rustc: {:?}", rustc_args);
     println!("Running rustc...");
     run_compiler(&rustc_args, &mut Entry { cli: &cli });
