@@ -28,6 +28,9 @@ pub enum Command {
         /// Arguments to Rust variables
         #[arg(last = true)]
         last_args: Vec<String>,
+        /// Force initialization
+        #[arg(long)]
+        force_init: bool,
     },
 }
 

@@ -114,7 +114,10 @@ fn rustc_setup(cli: &Cli, last_args: &Vec<String>) -> Vec<String> {
 }
 
 /// Perform the `run` command
-pub fn run(cli: &Cli, last_args: &Vec<String>) {
+pub fn run(cli: &Cli, last_args: &Vec<String>, force_init: bool) {
+    if force_init {
+        init(cli, true);
+    }
     let rustc_args = rustc_setup(cli, last_args);
     debug_println!(cli, "Arguments to rustc: {:?}", rustc_args);
     println!("Running rustc...");
