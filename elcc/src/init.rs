@@ -43,70 +43,6 @@ fn exec_command_with_stderr<F: FnMut(String) -> ()>(
     }
 }
 
-/// Parse environment variables
-fn parse_env(cli: &Cli, mut env: &str) -> String {
-    debug_println!(cli, "Parsing environment variables: {}", env);
-    let mut res = String::new();
-    loop {
-        let eq_idx = env
-            .find('=')
-            .unwrap_or_else(|| panic!("Cannot find '=' in {}", env));
-        let key = &env[..eq_idx];
-        key.chars().for_each(|c| {
-            assert!(
-                c.is_ascii_alphanumeric() || c == '_',
-                "Parsed key contains a character '{ }' not alphanumeric or '_': {}",
-                c,
-                key
-            )
-        });
-        env = &env[eq_idx + 1..];
-        let mut val;
-        if env.chars().nth(0) == Some('\'') {
-            let env_start = env;
-            let mut env_chars = env[1..].chars();
-            val = "'".to_owned();
-            loop {
-                let c = env_chars
-                    .next()
-                    .unwrap_or_else(|| panic!("Closing quote not found in {}", env_start));
-                val.push(c);
-                if c == '\'' {
-                    break;
-                }
-                if c == '\\' {
-                    // TODO: Support multiple characters
-                    val.push(
-                        env_chars
-                            .next()
-                            .unwrap_or_else(|| panic!("Orphan '\\' in {}", env_start)),
-                    );
-                }
-            }
-            env = env_chars.as_str();
-        } else {
-            if let Some(close_idx) = env.find(' ') {
-                val = env[..close_idx].to_owned();
-                env = &env[close_idx..];
-            } else {
-                val = env.to_owned();
-                env = &env[env.len()..];
-            }
-        };
-        debug_println!(cli, "Found {} {}", key, val);
-        res.push_str(&format!("{}={}\n", key, val));
-        if env.is_empty() {
-            break;
-        }
-        assert!(
-            env.chars().nth(0) == Some(' '),
-            "Key-value pair not ending with ' '"
-        );
-        env = &env[1..];
-    }
-    res
-}
-
 /// Modify rustc options
 fn modify_rustc_options(rustc_options: String) -> String {
     lazy_static! {
@@ -123,45 +59,49 @@ fn modify_rustc_options(rustc_options: String) -> String {
 fn get_settings(cli: &Cli) -> String {
     println!("...Running `cargo check -vv` to obtain options...");
     lazy_static! {
-        static ref LINE_REGEX: Regex = Regex::new("^     Running `(.*) (.*?rustc) (.*)`$").unwrap();
+        static ref STDERR_REGEX: Regex =
+            Regex::new("\\n     Running `((?:.|\\n)+) (\\S*?rustc) (.+?)`\\n").unwrap();
         static ref ARGS_REGEX: Regex = Regex::new("^(.*?) src/(.*?)\\.rs (.*?)$").unwrap();
     }
-    let mut rustc_settings = None::<String>;
+    let mut stderr = String::new();
     exec_command_with_stderr(Command::new("cargo").args(["check", "-vv"]), &mut |line| {
         if cli.debug {
             eprintln!("{}", line);
         }
-        if rustc_settings.is_some() {
-            return;
-        }
-        if let Some(capture) = LINE_REGEX.captures(line.as_str()) {
-            let (_, [rustc_env, rustc_name, rustc_args]) = capture.extract();
-            debug_println!(
-                cli,
-                "Found a rustc command: \n#  {}\n#  {}\n#  {}",
-                rustc_env,
-                rustc_name,
-                rustc_args
-            );
-            let (_, [prefix, rs_path, postfix]) = ARGS_REGEX
-                .captures(rustc_args)
-                .unwrap_or_else(|| panic!("Failed to parse rustc arguments `{}`", rustc_args))
-                .extract();
-            debug_println!(
-                cli,
-                "Parsed command:\n#   {}\n#   {}\n#   {}",
-                prefix,
-                rs_path,
-                postfix
-            );
-            let rustc_options = modify_rustc_options(format!("{} {}", prefix, postfix));
-            let mut rustc_settings_ = parse_env(cli, rustc_env);
-            rustc_settings_.push_str(&rustc_options);
-            debug_println!(cli, "Recorded settings:\n{}", rustc_settings_);
-            rustc_settings = Some(rustc_settings_);
-        }
+        stderr.push_str(&line);
+        stderr.push('\n');
     });
-    rustc_settings.unwrap_or_else(|| panic!("Could not found a rustc command"))
+    let (_, [rustc_env, rustc_name, rustc_args]) = STDERR_REGEX
+        .captures(&stderr)
+        .unwrap_or_else(|| panic!("Could not find a rustc command in:\n{}", stderr))
+        .extract();
+    debug_println!(
+        cli,
+        "Found a rustc command: \n#  {}\n#  {}\n#  {}",
+        rustc_env,
+        rustc_name,
+        rustc_args
+    );
+    debug_println!(cli, "Recorded env:\n{}", rustc_env);
+    let (_, [prefix, rs_path, postfix]) = ARGS_REGEX
+        .captures(rustc_args)
+        .unwrap_or_else(|| panic!("Failed to parse rustc arguments `{}`", rustc_args))
+        .extract();
+    debug_println!(
+        cli,
+        "Parsed command:\n#   {}\n#   {}\n#   {}",
+        prefix,
+        rs_path,
+        postfix
+    );
+    let rustc_options = modify_rustc_options(format!("{} {}", prefix, postfix));
+    debug_println!(cli, "Recorded options:\n{}", rustc_options);
+    assert!(
+        rustc_options.chars().all(|c| c != '\n'),
+        "Options contains a new line: {}",
+        rustc_options
+    );
+    format!("{}\n{}", rustc_options, rustc_env)
 }
 
 /// Perform the init command

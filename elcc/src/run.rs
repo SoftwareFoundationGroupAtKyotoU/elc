@@ -1,7 +1,6 @@
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
-use snailquote::unescape;
 use std::env;
 use std::fs;
 
@@ -31,6 +30,63 @@ impl Callbacks for Entry<'_> {
     }
 }
 
+/// Process environment variables
+fn process_env(cli: &Cli, mut env: &str) {
+    debug_println!(cli, "Parsing environment variables: {}", env);
+    loop {
+        let eq_idx = env
+            .find('=')
+            .unwrap_or_else(|| panic!("Cannot find '=' in {}", env));
+        let key = &env[..eq_idx];
+        key.chars().for_each(|c| {
+            assert!(
+                c.is_ascii_alphanumeric() || c == '_',
+                "Parsed key contains a character '{ }' not alphanumeric or '_': {}",
+                c,
+                key
+            )
+        });
+        env = &env[eq_idx + 1..];
+        let mut val = String::new();
+        if env.starts_with('\'') {
+            env = &env[1..];
+            loop {
+                let close_idx = env
+                    .find('\'')
+                    .unwrap_or_else(|| panic!("Could not find a closing quote in {}", env));
+                val.push_str(&env[..close_idx]);
+                env = &env[close_idx + 1..];
+                if env.starts_with(' ') || env.is_empty() {
+                    break;
+                }
+                assert!(
+                    env.starts_with("\\''"),
+                    "Not starting with \"\\''\": {}",
+                    env
+                );
+                val.push('\'');
+                env = &env[3..];
+            }
+        } else {
+            let close_idx = env.find(' ').unwrap_or(env.len());
+            val = env[..close_idx].to_owned();
+            env = &env[close_idx..];
+        };
+        debug_println!(cli, "Set {}={}", key, val);
+        unsafe {
+            env::set_var(key, val);
+        }
+        if env.is_empty() {
+            break;
+        }
+        assert!(
+            env.chars().nth(0) == Some(' '),
+            "Key-value pair not ending with ' '"
+        );
+        env = &env[1..];
+    }
+}
+
 /// Set up the environment variables and construct the arguments for `rustc`
 fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String> {
     let rustc_settings = String::from_utf8(fs::read(RUSTC_SETTINGS_PATH).unwrap_or_else(|err| {
@@ -40,20 +96,15 @@ fn rustc_setup(cli: &Cli, rs_path: &str, last_args: &Vec<String>) -> Vec<String>
             .unwrap_or_else(|err| panic!("Reading from {} failed: {}", RUSTC_SETTINGS_PATH, err))
     }))
     .unwrap_or_else(|err| panic!("Could not parse as utf8: {}", err));
-    let mut rustc_settings = rustc_settings.lines();
-    let rustc_options = rustc_settings.next_back().expect("No lines found!");
-    rustc_settings.for_each(|line| {
-        let idx = line
-            .find("=")
-            .unwrap_or_else(|| panic!("Could not found \"=\" in {}", line));
-        let key = &line[..idx];
-        let val =
-            unescape(&line[idx + 1..]).unwrap_or_else(|err| panic!("Failed to unescape: {}", err));
-        debug_println!(cli, "Set {} = {}", key, val);
-        unsafe {
-            env::set_var(key, val);
-        }
+    let sep_idx = rustc_settings.find('\n').unwrap_or_else(|| {
+        panic!(
+            "Could not find a new line in rustc settings: {}",
+            rustc_settings
+        )
     });
+    let rustc_options = &rustc_settings[0..sep_idx];
+    let rustc_env = &rustc_settings[sep_idx + 1..];
+    process_env(cli, rustc_env);
     let mut args = vec!["rustc".to_owned(), rs_path.to_owned()];
     rustc_options
         .split_ascii_whitespace()
