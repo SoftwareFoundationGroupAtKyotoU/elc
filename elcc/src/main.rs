@@ -6,22 +6,15 @@ extern crate rustc_interface;
 extern crate rustc_middle;
 extern crate rustc_span;
 
-mod base;
+mod cargo;
+mod cli;
 mod init;
 mod run;
+mod rustc_settings;
+mod util;
 
-use crate::base::{Command, parse_cli};
-use crate::init::init;
-use crate::run::run;
+use crate::cli::exec_cli;
 
 fn main() {
-    let cli = parse_cli();
-    debug_println!(cli, "Cli argument: {:?}", cli);
-    match &cli.command {
-        Command::Init { force } => init(&cli, *force),
-        Command::Run {
-            last_args,
-            force_init,
-        } => run(&cli, last_args, *force_init),
-    }
+    exec_cli();
 }
