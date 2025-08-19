@@ -1,8 +1,8 @@
 # elcc: Elc compiler based on rustc
 
-## Build
+## How to use
 
-You can obtain the shell script `elcc` with:
+Run the [`elcc`](./elcc) script:
 ```
-make elcc
+elcc
 ```
