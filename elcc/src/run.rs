@@ -92,7 +92,7 @@ fn run_body(tcx: TyCtxt) {
             debug!("Input: {query}");
             match query.as_str() {
                 "src" => {
-                    let src = source_file.src.as_ref().expect("Source not available!");
+                    let src = source_file.src.clone().expect("Source not available!");
                     println!("    Source:\n{}", src);
                 }
                 "mir" => {

@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::{env, fs};
 
-/// Check if the rustc settings file is out of date
+/// Check if the rustc settings file is out of date.
 pub fn is_rustc_settings_old(rustc_settings_path: &str) -> bool {
     let base_time = match get_time_modified(rustc_settings_path) {
         None => return false,

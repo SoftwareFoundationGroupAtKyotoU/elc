@@ -5,7 +5,7 @@ use crate::report;
 use crate::util::{exec_command, exec_command_with_stderr};
 use std::process::Command;
 
-/// Check if cargo should be quiet
+/// Check if cargo should be quiet.
 fn should_cargo_be_quiet() -> bool {
     !LogLevel::Report.is_enabled()
 }
@@ -21,7 +21,7 @@ pub fn run_cargo_check() {
     exec_command(command);
 }
 
-/// Run cargo check with -vv, returning stderr
+/// Run cargo check with -vv, returning stderr.
 pub fn run_cargo_check_vv() -> String {
     report!("...Running `cargo check -vv` to obtain options...");
     let mut stderr = String::new();

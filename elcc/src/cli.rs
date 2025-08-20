@@ -54,7 +54,7 @@ pub struct InitArgs {
     pub rustc_settings_path: String,
 }
 
-// Arguments for the `run` command.
+/// Arguments for the `run` command.
 #[derive(Args, Debug)]
 pub struct RunArgs {
     /// Force initialization of the rustc settings.
@@ -68,7 +68,7 @@ pub struct RunArgs {
     pub rustc_args: Vec<String>,
 }
 
-/// Calculate [`LogFilter`] from the verbosity
+/// Calculate [`LogFilter`] from the verbosity.
 fn calc_log_filter(verbosity: Verbosity) -> LogFilter {
     let Verbosity { verbose, quiet } = verbosity;
     assert!(
