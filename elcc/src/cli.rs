@@ -18,10 +18,10 @@ pub struct Cli {
 #[derive(Args, Debug)]
 pub struct TopArgs {
     /// Log for debugging.
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub debug: bool,
     /// Be verbose.
-    #[arg(short, long)]
+    #[arg(short, long, global = true)]
     pub verbose: bool,
 }
 
