@@ -9,6 +9,7 @@ extern crate rustc_interface;
 extern crate rustc_middle;
 extern crate rustc_span;
 
+mod ansi;
 mod cargo;
 mod cli;
 mod init;

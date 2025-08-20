@@ -3,6 +3,7 @@
 use crate::log::{LogFilter, init_log_filter};
 use crate::{debug, init, run};
 use clap::{ArgAction, Args, Parser, Subcommand};
+use std::io::{IsTerminal, stderr};
 
 /// Command-line interface for [`clap`].
 #[derive(Parser, Debug)]
@@ -11,6 +12,9 @@ pub struct Cli {
     /// Verbosity.
     #[command(flatten)]
     pub verbosity: Verbosity,
+    /// Choose plain non-ANSI logging.
+    #[arg(long, global = true, default_value_t = !stderr().is_terminal())]
+    pub plain: bool,
     /// Command.
     #[command(subcommand)]
     pub command: Command,
@@ -80,6 +84,13 @@ pub fn exec_cli() {
     let cli = Cli::parse();
     let log_filter = calc_log_filter(cli.verbosity);
     init_log_filter(log_filter);
+    if !cli.plain {
+        yansi::enable();
+        debug!("Enabled ANSI output.");
+    } else {
+        yansi::disable();
+        debug!("Disabled ANSI output.");
+    }
     debug!("Cli argument: {cli:?}");
     debug!("Log filter: {log_filter:?}");
     match &cli.command {

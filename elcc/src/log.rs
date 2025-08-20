@@ -1,5 +1,6 @@
 //! Logging.
 
+use crate::ansi::{DIM, RESET};
 use std::fmt::Arguments;
 use std::sync::OnceLock;
 
@@ -91,7 +92,9 @@ impl LogLevel {
 pub fn log(log_level: LogLevel, args: Arguments) {
     if log_level.is_enabled() {
         match log_level {
-            LogLevel::Debug => eprintln!("# {}", args),
+            LogLevel::Debug => {
+                eprintln!("{DIM}# {}{RESET}", args);
+            }
             _ => eprintln!("{}", args),
         }
     }
