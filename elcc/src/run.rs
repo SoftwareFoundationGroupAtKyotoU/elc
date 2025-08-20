@@ -2,7 +2,7 @@
 
 use crate::cargo::run_cargo_check;
 use crate::cli::RunArgs;
-use crate::rustc_settings::{create_rustc_settings, load_rustc_settings};
+use crate::rustc_settings::{create_rustc_settings, is_rustc_settings_old, load_rustc_settings};
 use crate::util::{exists_path, flush_stdout, read_line_trim};
 use crate::{debug, info, report, warn};
 use rustc_ast::Crate;
@@ -38,7 +38,16 @@ pub fn run(run_args: &RunArgs) {
     report!("Initializing for running elcc...");
     let rustc_settings_path = &run_args.rustc_settings_path;
     run_cargo_check();
-    if run_args.force_init || !exists_path(rustc_settings_path) {
+    let should_create_rustc_settings = run_args.force_init
+        || !exists_path(rustc_settings_path)
+        || (is_rustc_settings_old(rustc_settings_path)
+            && {
+                report!(
+                    "...Renewing the rustc settings file at `{rustc_settings_path}` because it has been out of date..."
+                );
+                true
+            });
+    if should_create_rustc_settings {
         create_rustc_settings(rustc_settings_path);
     }
     let rustc_args = load_rustc_settings(rustc_settings_path, &run_args.rustc_args);

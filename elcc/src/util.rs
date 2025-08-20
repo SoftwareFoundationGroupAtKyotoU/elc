@@ -1,8 +1,10 @@
 //! Utility.
 
+use crate::debug;
 use std::fs;
 use std::io::{BufRead, BufReader, Write, stdin, stdout};
 use std::process::{Command, Stdio};
+use std::time::SystemTime;
 
 /// Read a line from stdin, with error handling.
 pub fn read_line() -> String {
@@ -41,6 +43,28 @@ pub fn read_file(path: &str) -> Vec<u8> {
 pub fn read_file_utf8(path: &str) -> String {
     String::from_utf8(read_file(path))
         .unwrap_or_else(|err| panic!("Could not parse as utf8: {err}"))
+}
+
+/// Get the file metadata, with error handling.
+pub fn get_metadata(path: &str) -> Option<fs::Metadata> {
+    match fs::metadata(path) {
+        Ok(metadata) => Some(metadata),
+        Err(err) => {
+            debug!("Could not get the metadata of `{path}`: {err}");
+            None
+        }
+    }
+}
+
+/// Get the file modification time, with error handling.
+pub fn get_time_modified(path: &str) -> Option<SystemTime> {
+    match get_metadata(path)?.modified() {
+        Ok(time) => Some(time),
+        Err(err) => {
+            debug!("Getting the file modification time of `{path}` failed: {err}");
+            None
+        }
+    }
 }
 
 /// Execute a command, streaming stdout and stderr.
