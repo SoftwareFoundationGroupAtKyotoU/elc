@@ -1,8 +1,29 @@
 //! Utility.
 
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write, stdin, stdout};
 use std::process::{Command, Stdio};
+
+/// Read a line from stdin, with error handling.
+pub fn read_line() -> String {
+    let mut line = String::new();
+    stdin()
+        .read_line(&mut line)
+        .unwrap_or_else(|err| panic!("Error reading a line from stdin: {}", err));
+    line
+}
+
+/// Read a line from stdin and trim, with error handling.
+pub fn read_line_trim() -> String {
+    read_line().trim().to_owned()
+}
+
+/// Flush a stdout, with error handling.
+pub fn flush_stdout() {
+    stdout()
+        .flush()
+        .unwrap_or_else(|err| panic!("Could not flush stdout: {}", err));
+}
 
 /// Check if a path exists, with error handling.
 pub fn exists_path(path: &str) -> bool {

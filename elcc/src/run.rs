@@ -3,12 +3,14 @@
 use crate::cargo::run_cargo_check;
 use crate::cli::RunArgs;
 use crate::rustc_settings::{create_rustc_settings, load_rustc_settings};
-use crate::util::exists_path;
-use crate::{debug, info, report};
+use crate::util::{exists_path, flush_stdout, read_line_trim};
+use crate::{debug, info, report, warn};
 use rustc_ast::Crate;
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
+use rustc_span::source_map::get_source_map;
+use rustc_span::{FileName, RealFileName, Span};
 
 /// Argument passed to [`run_compiler`].
 #[derive(Clone, Copy)]
@@ -46,16 +48,74 @@ pub fn run(run_args: &RunArgs) {
     run_compiler(&rustc_args, &mut Entry {});
 }
 
-/// Body executed by `after_analysis`.
+/// Body executed by [`after_analysis`](Callbacks::after_analysis).
 fn run_body(tcx: TyCtxt) {
     report!("Running elcc...");
-    info!("MIR keys:");
-    for id in tcx.mir_keys(()) {
-        let id = id.to_def_id();
-        let path = tcx.def_path(id);
-        debug!("MIR key {path:?}");
-        let path_str = tcx.def_path_str(id);
-        info!("  {path_str}");
+    let source_map = get_source_map().expect("Getting the source map failed");
+    loop {
+        print!("  Enter a source file path: ");
+        flush_stdout();
+        let source_file_path = read_line_trim();
+        debug!("Input: {source_file_path}");
+        if &source_file_path == "quit" {
+            info!("    Ok, quitting now.");
+            return;
+        }
+        let source_file = source_map.get_source_file(&FileName::Real(RealFileName::LocalPath(
+            (&source_file_path).into(),
+        )));
+        let source_file = match source_file {
+            None => {
+                warn!("    Could not find a source file at `{source_file_path}`!");
+                continue;
+            }
+            Some(source_file) => source_file,
+        };
+        let start_pos = source_file.start_pos;
+        let end_pos = source_file.end_position();
+        debug!("Position of the file: {start_pos:?} - {end_pos:?}");
+        let file_span = Span::with_root_ctxt(start_pos, end_pos);
+        debug!("Span for the file: {:?}", file_span);
+        loop {
+            print!("  Enter what you want: ");
+            flush_stdout();
+            let query = read_line_trim();
+            debug!("Input: {query}");
+            match query.as_str() {
+                "src" => {
+                    let src = source_file.src.as_ref().expect("Source not available!");
+                    println!("    Source:\n{}", src);
+                }
+                "mir" => {
+                    println!("    MIR keys:");
+                    let tcx_at = tcx.at(file_span);
+                    for id in tcx_at.mir_keys(()) {
+                        let id = id.to_def_id();
+                        let path = tcx.def_path(id);
+                        debug!("MIR key {path:?}");
+                        let path_str = tcx.def_path_str(id);
+                        let span = tcx.def_span(id);
+                        debug!("Span: {span:?}");
+                        if !file_span.contains(span) {
+                            debug!("Not in the file");
+                            continue;
+                        }
+                        println!("      {path_str}");
+                    }
+                }
+                "done" => {
+                    info!("    OK.");
+                    break;
+                }
+                "quit" => {
+                    info!("    OK, quitting now.");
+                    return;
+                }
+                _ => {
+                    warn!("    Unrecognized request: {query}");
+                    continue;
+                }
+            }
+        }
     }
-    report!("...Not implemented yet, sorry!");
 }
