@@ -2,12 +2,14 @@
 
 use crate::log::{LogFilter, init_log_filter};
 use crate::{debug, init, run};
-use clap::{ArgAction, Args, Parser, Subcommand};
-use std::io::{IsTerminal, stderr};
+use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
+use clap_complete::aot::{ValueHint, generate};
+use std::io::{IsTerminal, stderr, stdout};
 
 /// Command-line interface for [`clap`].
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, disable_help_subcommand = true)]
 pub struct Cli {
     /// Verbosity.
     #[command(flatten)]
@@ -41,6 +43,8 @@ pub enum Command {
     Init(InitArgs),
     /// Run the static verifier.
     Run(RunArgs),
+    /// Generate completion.
+    Complete(CompleteArgs),
 }
 
 /// Arguments for the `init` command.
@@ -50,7 +54,7 @@ pub struct InitArgs {
     #[arg(short, long)]
     pub force: bool,
     /// Path to the rustc settings.
-    #[arg(long("rustc-settings"), default_value = DEFAULT_RUSTC_SETTINGS_PATH)]
+    #[arg(long("rustc-settings"), value_hint = ValueHint::FilePath, default_value = DEFAULT_RUSTC_SETTINGS_PATH)]
     pub rustc_settings_path: String,
 }
 
@@ -61,11 +65,22 @@ pub struct RunArgs {
     #[arg(long)]
     pub force_init: bool,
     /// Path to the rustc settings.
-    #[arg(long("rustc-settings"), default_value = DEFAULT_RUSTC_SETTINGS_PATH)]
+    #[arg(long("rustc-settings"), value_hint = ValueHint::FilePath, default_value = DEFAULT_RUSTC_SETTINGS_PATH)]
     pub rustc_settings_path: String,
     /// Arguments to rustc.
     #[arg(last = true)]
     pub rustc_args: Vec<String>,
+}
+
+/// Arguments for the `complete` command.
+#[derive(Args, Debug)]
+pub struct CompleteArgs {
+    /// Target shell, defaults to the current shell.
+    #[arg(long)]
+    pub shell: Option<Shell>,
+    /// Name of the command.
+    #[arg(long, default_value = "elcc")]
+    pub name: String,
 }
 
 /// Calculate [`LogFilter`] from the verbosity.
@@ -77,6 +92,22 @@ fn calc_log_filter(verbosity: Verbosity) -> LogFilter {
     );
     let default = LogFilter::Info as i32;
     LogFilter::from(default + verbose as i32 - quiet as i32)
+}
+
+/// Detect a shell
+pub fn detect_shell() -> Shell {
+    let shell = Shell::from_env().unwrap_or_else(|| panic!("Could not detect a supported shell"));
+    debug!("Detected a supported shell: {shell}");
+    shell
+}
+
+/// Generate completion.
+pub fn complete(args: &CompleteArgs) {
+    let shell = match args.shell {
+        Some(shell) => shell,
+        None => detect_shell(),
+    };
+    generate(shell, &mut Cli::command(), &args.name, &mut stdout())
 }
 
 /// Parse and execute a `Cli`.
@@ -96,5 +127,6 @@ pub fn exec_cli() {
     match &cli.command {
         Command::Init(args) => init::init(args),
         Command::Run(args) => run::run(args),
+        Command::Complete(args) => complete(args),
     }
 }
