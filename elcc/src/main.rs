@@ -1,6 +1,7 @@
 //! Elc compiler based on rustc.
 
 #![feature(rustc_private)]
+#![macro_use]
 
 extern crate rustc_ast;
 extern crate rustc_driver;
@@ -11,6 +12,7 @@ extern crate rustc_span;
 mod cargo;
 mod cli;
 mod init;
+mod log;
 mod run;
 mod rustc_settings;
 mod util;

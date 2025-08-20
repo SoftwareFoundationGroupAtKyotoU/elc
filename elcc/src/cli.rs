@@ -1,29 +1,30 @@
 //! For the command-line interface.
 
-use crate::{init::init, run::run};
-use clap::{Args, Parser, Subcommand};
+use crate::log::{LogFilter, init_log_filter};
+use crate::{debug, init, run};
+use clap::{ArgAction, Args, Parser, Subcommand};
 
 /// Command-line interface for [`clap`].
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
-    /// Top-level arguments.
+    /// Verbosity.
     #[command(flatten)]
-    pub args: TopArgs,
+    pub verbosity: Verbosity,
     /// Command.
     #[command(subcommand)]
     pub command: Command,
 }
 
-/// Top-level arguments.
-#[derive(Args, Debug)]
-pub struct TopArgs {
-    /// Log for debugging.
-    #[arg(long, global = true)]
-    pub debug: bool,
-    /// Be verbose.
-    #[arg(short, long, global = true)]
-    pub verbose: bool,
+/// Verbosity.
+#[derive(Args, Debug, Clone, Copy)]
+pub struct Verbosity {
+    /// Make elcc more verbose.
+    #[arg(short, long, global = true, action = ArgAction::Count)]
+    pub verbose: u8,
+    /// Make elcc more quiet.
+    #[arg(short, long, global = true, action = ArgAction::Count)]
+    pub quiet: u8,
 }
 
 /// Default file path for rustc settings.
@@ -63,24 +64,26 @@ pub struct RunArgs {
     pub rustc_args: Vec<String>,
 }
 
-/// Print for debugging.
-#[macro_export]
-macro_rules! debug_println {
-    ($top_args:expr, $fmt:expr $(, $args:expr)* $(,)?) => {
-        if $top_args.debug {
-            print!("# ");
-            println!($fmt $(, $args)*);
-        }
-    };
+/// Calculate [`LogFilter`] from the verbosity
+fn calc_log_filter(verbosity: Verbosity) -> LogFilter {
+    let Verbosity { verbose, quiet } = verbosity;
+    assert!(
+        verbose == 0 || quiet == 0,
+        "Should not set both -v/--verbose and -q/-quiet",
+    );
+    let default = LogFilter::Info as i32;
+    LogFilter::from(default + verbose as i32 - quiet as i32)
 }
 
 /// Parse and execute a `Cli`.
 pub fn exec_cli() {
     let cli = Cli::parse();
-    let top_args = &cli.args;
-    debug_println!(top_args, "Cli argument: {cli:?}");
+    let log_filter = calc_log_filter(cli.verbosity);
+    init_log_filter(log_filter);
+    debug!("Cli argument: {cli:?}");
+    debug!("Log filter: {log_filter:?}");
     match &cli.command {
-        Command::Init(args) => init(top_args, args),
-        Command::Run(args) => run(top_args, args),
+        Command::Init(args) => init::init(args),
+        Command::Run(args) => run::run(args),
     }
 }
