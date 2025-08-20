@@ -1,3 +1,5 @@
+//! For using cargo.
+
 use crate::cli::TopArgs;
 use crate::util::{exec_command, exec_command_with_stderr};
 use std::process::Command;

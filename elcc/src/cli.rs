@@ -1,6 +1,7 @@
-use clap::{Args, Parser, Subcommand};
+//! For the command-line interface.
 
 use crate::{init::init, run::run};
+use clap::{Args, Parser, Subcommand};
 
 /// Command-line interface for [`clap`].
 #[derive(Parser, Debug)]

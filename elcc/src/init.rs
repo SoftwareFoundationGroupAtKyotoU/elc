@@ -1,3 +1,5 @@
+//! For the `init` command.
+
 use crate::cargo::run_cargo_check;
 use crate::cli::{InitArgs, TopArgs};
 use crate::rustc_settings::create_rustc_settings;

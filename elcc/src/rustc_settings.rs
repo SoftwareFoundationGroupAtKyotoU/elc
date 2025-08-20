@@ -1,3 +1,5 @@
+//! For the rustc settings.
+
 use crate::cargo::{mark_crate_dirty, run_cargo_check_vv};
 use crate::cli::TopArgs;
 use crate::debug_println;
@@ -8,6 +10,9 @@ use std::{env, fs};
 
 /// Separator between the environment arguments and options.
 const RUSTC_SETTINGS_SEP: &str = "\n[RUSTC]\n";
+
+/// Text explanation of [`RUSTC_SETTINGS_SEP`].
+const RUSTC_SETTINGS_SEP_TEXT: &str = "\"\\n[RUSTC]\\n\"";
 
 /// Modify rustc arguments.
 fn modify_rustc_args(rustc_args: String) -> String {
@@ -38,7 +43,7 @@ fn get_rustc_settings(top_args: &TopArgs) -> String {
     debug_println!(top_args, "  Arguments: {rustc_args}");
     assert!(
         !rustc_args.contains(RUSTC_SETTINGS_SEP),
-        "Error: {rustc_env} contains {RUSTC_SETTINGS_SEP}"
+        "Error: {rustc_env} contains {RUSTC_SETTINGS_SEP_TEXT}"
     );
     let rustc_args = modify_rustc_args(rustc_args.to_owned());
     debug_println!(top_args, "Modified arguments: {rustc_args}");
@@ -111,9 +116,10 @@ pub fn load_rustc_settings(
     rustc_settings_path: &str,
     last_args: &Vec<String>,
 ) -> Vec<String> {
+    println!("...Loading the rustc settings from `{rustc_settings_path}`...");
     let rustc_settings = read_file_utf8(rustc_settings_path);
     let sep_idx = rustc_settings.find(RUSTC_SETTINGS_SEP).unwrap_or_else(|| {
-        panic!("Could not find {RUSTC_SETTINGS_SEP} in rustc settings: {rustc_settings}")
+        panic!("Could not find {RUSTC_SETTINGS_SEP_TEXT} in rustc settings: {rustc_settings}")
     });
     let rustc_env = &rustc_settings[0..sep_idx];
     let rustc_options = &rustc_settings[sep_idx + RUSTC_SETTINGS_SEP.len()..];

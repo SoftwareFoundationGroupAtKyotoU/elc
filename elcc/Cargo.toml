@@ -3,7 +3,7 @@ name = "elcc"
 version = "0.1.0"
 edition = "2024"
 authors = ["Yusuke Matsushita <ysk.m24t@gmail.com>"]
-description = "Elc compiler based on rustc"
+description = "Elc compiler based on rustc."
 
 [dependencies]
 clap = { version = "4.5.45", features = ["derive"] }

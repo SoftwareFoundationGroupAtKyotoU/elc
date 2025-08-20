@@ -1,3 +1,5 @@
+//! Utility.
+
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};

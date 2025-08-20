@@ -1,3 +1,5 @@
+//! For the `run` command.
+
 use crate::cargo::run_cargo_check;
 use crate::cli::{RunArgs, TopArgs};
 use crate::debug_println;

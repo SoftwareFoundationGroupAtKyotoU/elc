@@ -1,3 +1,5 @@
+//! Elc compiler based on rustc.
+
 #![feature(rustc_private)]
 
 extern crate rustc_ast;
@@ -15,6 +17,7 @@ mod util;
 
 use crate::cli::exec_cli;
 
+/// The entry point.
 fn main() {
     exec_cli();
 }
