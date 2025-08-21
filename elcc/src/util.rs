@@ -6,6 +6,20 @@ use std::io::{BufRead as _, BufReader, Write as _, stdin, stdout};
 use std::process::{Command, Stdio};
 use std::time::SystemTime;
 
+/// Allow applying an arbitrary function
+/// in the form of the method [`applied_to`](AppliedTo::applied_to).
+pub trait AppliedTo
+where
+    Self: Sized,
+{
+    /// Method for applying a function.
+    #[inline(always)]
+    fn applied_to<R, F: FnOnce(Self) -> R>(self, f: F) -> R {
+        f(self)
+    }
+}
+impl<T> AppliedTo for T {}
+
 /// Read a line from stdin, with error handling.
 pub fn read_line() -> String {
     let mut line = String::new();
@@ -67,38 +81,43 @@ pub fn get_time_modified(path: &str) -> Option<SystemTime> {
     }
 }
 
-/// Execute a command, streaming stdout and stderr.
-pub fn exec_command(command: &mut Command) {
-    let exit_status = command
-        .spawn()
-        .unwrap_or_else(|err| panic!("Error in spawning: {err}"))
-        .wait()
-        .unwrap_or_else(|err| panic!("Error in waiting: {err}"));
-    if !exit_status.success() {
-        panic!("Failed with the exit_status {exit_status}")
-    }
+/// Extend [`Command`] with methods.
+pub trait CommandExtra {
+    /// Execute a command, streaming stdout and stderr.
+    fn exec(&mut self);
+    /// Execute a command, streaming stdout but capturing stderr.
+    fn exec_with_stderr<F: FnMut(String) -> ()>(&mut self, process_stderr_line: &mut F);
 }
 
-/// Execute a command, streaming stdout but capturing stderr.
-pub fn exec_command_with_stderr<F: FnMut(String) -> ()>(
-    command: &mut Command,
-    process_stderr_line: &mut F,
-) {
-    let mut child = command
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap_or_else(|err| panic!("Error in spawning: {err}"));
-    BufReader::new(child.stderr.take().unwrap())
-        .lines()
-        .for_each(|line| {
-            process_stderr_line(
-                line.unwrap_or_else(|err| panic!("Failed to get a line from stderr: {err}")),
-            );
-        });
-    let exit_status = child
-        .wait()
-        .unwrap_or_else(|err| panic!("Error in waiting: {err}"));
-    if !exit_status.success() {
-        panic!("Failed with the exit_status {exit_status}")
+impl CommandExtra for Command {
+    fn exec(&mut self) {
+        let exit_status = self
+            .spawn()
+            .unwrap_or_else(|err| panic!("Error in spawning: {err}"))
+            .wait()
+            .unwrap_or_else(|err| panic!("Error in waiting: {err}"));
+        if !exit_status.success() {
+            panic!("Failed with the exit_status {exit_status}")
+        }
+    }
+
+    fn exec_with_stderr<F: FnMut(String) -> ()>(&mut self, process_stderr_line: &mut F) {
+        let mut child = self
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap_or_else(|err| panic!("Error in spawning: {err}"));
+        BufReader::new(child.stderr.take().unwrap())
+            .lines()
+            .for_each(|line| {
+                process_stderr_line(
+                    line.unwrap_or_else(|err| panic!("Failed to get a line from stderr: {err}")),
+                );
+            });
+        let exit_status = child
+            .wait()
+            .unwrap_or_else(|err| panic!("Error in waiting: {err}"));
+        if !exit_status.success() {
+            panic!("Failed with the exit_status {exit_status}")
+        }
     }
 }
