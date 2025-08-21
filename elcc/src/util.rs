@@ -2,7 +2,7 @@
 
 use crate::debug;
 use std::fs;
-use std::io::{BufRead, BufReader, Write, stdin, stdout};
+use std::io::{BufRead as _, BufReader, Write as _, stdin, stdout};
 use std::process::{Command, Stdio};
 use std::time::SystemTime;
 

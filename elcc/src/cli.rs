@@ -2,7 +2,7 @@
 
 use crate::log::{LogFilter, init_log_filter};
 use crate::{debug, init, run};
-use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand};
+use clap::{ArgAction, Args, CommandFactory as _, Parser, Subcommand};
 use clap_complete::Shell;
 use clap_complete::aot::{ValueHint, generate};
 use std::io::{IsTerminal, stderr, stdout};
