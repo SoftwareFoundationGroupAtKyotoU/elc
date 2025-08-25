@@ -7,12 +7,14 @@ use crate::util::{exists_path, flush_stdout, read_line_trim};
 use crate::{debug, info, report, warn};
 use rustc_ast::Crate;
 use rustc_driver::{Callbacks, Compilation, run_compiler};
+use rustc_hir::def_id::DefId;
 use rustc_interface::interface::Compiler;
 use rustc_middle::mir::pretty::{PrettyPrintMirOptions, write_mir_fn};
 use rustc_middle::ty::TyCtxt;
-use rustc_span::source_map::get_source_map;
-use rustc_span::{FileName, RealFileName, Span};
+use rustc_span::source_map::{SourceMap, get_source_map};
+use rustc_span::{FileName, FileNameDisplayPreference, RealFileName, SourceFile, Span};
 use std::io::stdout;
+use std::sync::Arc;
 
 /// Argument passed to [`run_compiler`].
 #[derive(Clone, Copy)]
@@ -59,96 +61,102 @@ pub fn run(run_args: &RunArgs) {
     run_compiler(&rustc_args, &mut Entry {});
 }
 
+/// Get a source file.
+fn get_source_file(source_map: &SourceMap, path: &str) -> Option<Arc<SourceFile>> {
+    source_map
+        .get_source_file(&FileName::Real(RealFileName::LocalPath(path.into())))
+        .or_else(|| {
+            warn!("    Could not find a source file at `{path}`!");
+            None
+        })
+}
+
+/// Return a span of a source file.
+fn source_file_span(source_file: &SourceFile) -> Span {
+    Span::with_root_ctxt(source_file.start_pos, source_file.end_position())
+}
+
+/// Print MIR keys.
+fn print_mir_keys<F: FnMut(DefId) -> bool>(tcx: TyCtxt, pred: &mut F) {
+    for &id in tcx.mir_keys(()) {
+        let id = id.to_def_id();
+        if !pred(id) {
+            return;
+        }
+        debug!("    {:?}", tcx.def_path(id));
+        println!("      {}", tcx.def_path_str(id));
+    }
+}
+
+/// Execute a query.
+fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
+    match input.split(' ').collect::<Vec<_>>().as_slice() {
+        ["srcs"] => {
+            for source_file in source_map.files().iter() {
+                println!(
+                    "      {}",
+                    source_file
+                        .name
+                        .display(FileNameDisplayPreference::Remapped)
+                );
+            }
+        }
+        ["src", path] => {
+            let source_file = get_source_file(&source_map, path)?;
+            let src = source_file.src.clone().expect("Source not available!");
+            println!("    Source:\n{}", src);
+        }
+        ["mir", name] => {
+            let id = tcx
+                .mir_keys(())
+                .iter()
+                .find(|&&id| &tcx.def_path_str(id) == name);
+            let id = match id {
+                None => {
+                    warn!("Could not find an MIR key whose name is `{name}`");
+                    return None;
+                }
+                Some(&id) => id,
+            };
+            write_mir_fn(
+                tcx,
+                tcx.optimized_mir(id),
+                &mut |_, _| Ok(()),
+                &mut stdout(),
+                PrettyPrintMirOptions::from_cli(tcx),
+            )
+            .unwrap_or_else(|err| panic!("Error in printing MIR: {err}"));
+        }
+        ["mirs"] => {
+            println!("    MIR keys of the crate:");
+            print_mir_keys(tcx, &mut |_| true);
+        }
+        ["mirs", path] => {
+            let file_span = source_file_span(get_source_file(&source_map, path)?.as_ref());
+            println!("    MIR keys at `{path}`:");
+            print_mir_keys(tcx, &mut |id| file_span.contains(tcx.def_span(id)));
+        }
+        ["quit"] => {
+            info!("    OK, quitting now.");
+            return Some(());
+        }
+        _ => warn!("    Unrecognized query: {input}"),
+    }
+    None
+}
+
 /// Body executed by [`after_analysis`](Callbacks::after_analysis).
 fn run_body(tcx: TyCtxt) {
     report!("Running elcc...");
     let source_map = get_source_map().expect("Getting the source map failed");
     loop {
-        print!("  Enter a source file path: ");
+        print!("  Enter a query: ");
         flush_stdout();
-        let source_file_path = read_line_trim();
-        debug!("Input: {source_file_path}");
-        if &source_file_path == "quit" {
-            info!("    Ok, quitting now.");
+        let input = read_line_trim();
+        debug!("Input: {input}");
+        let res = exec_query(tcx, &source_map, &input);
+        if res.is_some() {
             return;
-        }
-        let source_file = source_map.get_source_file(&FileName::Real(RealFileName::LocalPath(
-            (&source_file_path).into(),
-        )));
-        let source_file = match source_file {
-            None => {
-                warn!("    Could not find a source file at `{source_file_path}`!");
-                continue;
-            }
-            Some(source_file) => source_file,
-        };
-        let start_pos = source_file.start_pos;
-        let end_pos = source_file.end_position();
-        debug!("Position of the file: {start_pos:?} - {end_pos:?}");
-        let file_span = Span::with_root_ctxt(start_pos, end_pos);
-        debug!("Span for the file: {:?}", file_span);
-        loop {
-            print!("  Enter what you want: ");
-            flush_stdout();
-            let input = read_line_trim();
-            debug!("Input: {input}");
-            let query = input.split(' ').collect::<Vec<_>>();
-            match query.as_slice() {
-                ["src"] => {
-                    let src = source_file.src.clone().expect("Source not available!");
-                    println!("    Source:\n{}", src);
-                }
-                ["mir", name] => {
-                    let (id, path_str) = tcx
-                        .mir_keys(())
-                        .iter()
-                        .filter(|&&id| file_span.contains(tcx.def_span(id)))
-                        .find_map(|&id| {
-                            let path_str = tcx.def_path_str(id);
-                            path_str.contains(name).then_some((id, path_str))
-                        })
-                        .unwrap_or_else(|| {
-                            panic!("Could not find an MIR key whose name contains `{name}`")
-                        });
-                    report!("Printing the MIR of `{}`:", path_str);
-                    write_mir_fn(
-                        tcx,
-                        tcx.optimized_mir(id),
-                        &mut |_, _| Ok(()),
-                        &mut stdout(),
-                        PrettyPrintMirOptions::from_cli(tcx),
-                    )
-                    .unwrap_or_else(|err| panic!("Error in printing MIR: {err}"));
-                }
-                ["mirs"] => {
-                    println!("    MIR keys:");
-                    for id in tcx.mir_keys(()) {
-                        let id = id.to_def_id();
-                        let path = tcx.def_path(id);
-                        debug!("MIR key {path:?}");
-                        let path_str = tcx.def_path_str(id);
-                        let span = tcx.def_span(id);
-                        debug!("Span: {span:?}");
-                        if !file_span.contains(span) {
-                            debug!("Not in the file");
-                            continue;
-                        }
-                        println!("      {path_str}");
-                    }
-                }
-                ["done"] => {
-                    info!("    OK.");
-                    break;
-                }
-                ["quit"] => {
-                    info!("    OK, quitting now.");
-                    return;
-                }
-                _ => {
-                    warn!("    Unrecognized query: {input}");
-                    continue;
-                }
-            }
         }
     }
 }
