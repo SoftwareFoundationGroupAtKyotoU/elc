@@ -8,9 +8,11 @@ use crate::{debug, info, report, warn};
 use rustc_ast::Crate;
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_interface::interface::Compiler;
+use rustc_middle::mir::pretty::{PrettyPrintMirOptions, write_mir_fn};
 use rustc_middle::ty::TyCtxt;
 use rustc_span::source_map::get_source_map;
 use rustc_span::{FileName, RealFileName, Span};
+use std::io::stdout;
 
 /// Argument passed to [`run_compiler`].
 #[derive(Clone, Copy)]
@@ -88,17 +90,39 @@ fn run_body(tcx: TyCtxt) {
         loop {
             print!("  Enter what you want: ");
             flush_stdout();
-            let query = read_line_trim();
-            debug!("Input: {query}");
-            match query.as_str() {
-                "src" => {
+            let input = read_line_trim();
+            debug!("Input: {input}");
+            let query = input.split(' ').collect::<Vec<_>>();
+            match query.as_slice() {
+                ["src"] => {
                     let src = source_file.src.clone().expect("Source not available!");
                     println!("    Source:\n{}", src);
                 }
-                "mir" => {
+                ["mir", name] => {
+                    let (id, path_str) = tcx
+                        .mir_keys(())
+                        .iter()
+                        .filter(|&&id| file_span.contains(tcx.def_span(id)))
+                        .find_map(|&id| {
+                            let path_str = tcx.def_path_str(id);
+                            path_str.contains(name).then_some((id, path_str))
+                        })
+                        .unwrap_or_else(|| {
+                            panic!("Could not find an MIR key whose name contains `{name}`")
+                        });
+                    report!("Printing the MIR of `{}`:", path_str);
+                    write_mir_fn(
+                        tcx,
+                        tcx.optimized_mir(id),
+                        &mut |_, _| Ok(()),
+                        &mut stdout(),
+                        PrettyPrintMirOptions::from_cli(tcx),
+                    )
+                    .unwrap_or_else(|err| panic!("Error in printing MIR: {err}"));
+                }
+                ["mirs"] => {
                     println!("    MIR keys:");
-                    let tcx_at = tcx.at(file_span);
-                    for id in tcx_at.mir_keys(()) {
+                    for id in tcx.mir_keys(()) {
                         let id = id.to_def_id();
                         let path = tcx.def_path(id);
                         debug!("MIR key {path:?}");
@@ -112,16 +136,16 @@ fn run_body(tcx: TyCtxt) {
                         println!("      {path_str}");
                     }
                 }
-                "done" => {
+                ["done"] => {
                     info!("    OK.");
                     break;
                 }
-                "quit" => {
+                ["quit"] => {
                     info!("    OK, quitting now.");
                     return;
                 }
                 _ => {
-                    warn!("    Unrecognized request: {query}");
+                    warn!("    Unrecognized query: {input}");
                     continue;
                 }
             }
