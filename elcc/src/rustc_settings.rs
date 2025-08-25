@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::{env, fs};
 
-/// Check if the rustc settings file is out of date.
+/// Checks if the rustc settings file is out of date.
 pub fn is_rustc_settings_old(rustc_settings_path: &str) -> bool {
     let base_time = match get_time_modified(rustc_settings_path) {
         None => return false,
@@ -29,19 +29,19 @@ const RUSTC_SETTINGS_SEP: &str = "\n[RUSTC]\n";
 /// Text explanation of [`RUSTC_SETTINGS_SEP`].
 const RUSTC_SETTINGS_SEP_TEXT: &str = "\"\\n[RUSTC]\\n\"";
 
-/// Modify rustc arguments.
+/// Modifies rustc arguments.
 fn modify_rustc_args(rustc_args: String) -> String {
     lazy_static! {
         static ref JSON_REGEX: Regex = Regex::new("--json=\\S* ").unwrap();
     }
-    // Disable json output
+    // Disables json output
     let rustc_options = rustc_args.replace("--error-format=json ", "");
     let rustc_options = JSON_REGEX.replace_all(&rustc_options, "");
     // Hacky replacement: A workaround
     rustc_options.replace(", ", ",").replace("'", "")
 }
 
-/// Get rustc settings.
+/// Gets rustc settings.
 fn get_rustc_settings() -> String {
     let stderr = run_cargo_check_vv();
     lazy_static! {
@@ -65,7 +65,7 @@ fn get_rustc_settings() -> String {
     format!("{rustc_env}{RUSTC_SETTINGS_SEP}{rustc_args}")
 }
 
-/// Create rustc settings.
+/// Creates rustc settings.
 pub fn create_rustc_settings(rustc_settings_path: &str) {
     mark_crate_dirty();
     let rustc_settings = get_rustc_settings();
@@ -74,7 +74,7 @@ pub fn create_rustc_settings(rustc_settings_path: &str) {
         .unwrap_or_else(|err| panic!("Could not write the rustc settings: {err}"));
 }
 
-/// Process environment variables.
+/// Processes environment variables.
 fn process_env(mut env: &str) {
     debug!("Parsing environment variables: {env}");
     loop {
@@ -124,7 +124,7 @@ fn process_env(mut env: &str) {
     }
 }
 
-/// Load rustc settings, set environment variables and construct the arguments for `rustc`.
+/// Loads rustc settings, sets environment variables and constructs the arguments for `rustc`.
 pub fn load_rustc_settings(rustc_settings_path: &str, last_args: &Vec<String>) -> Vec<String> {
     report!("...Loading the rustc settings from `{rustc_settings_path}`...");
     let rustc_settings = read_file_utf8(rustc_settings_path);

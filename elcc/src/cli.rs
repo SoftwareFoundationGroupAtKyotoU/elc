@@ -83,7 +83,7 @@ pub struct CompleteArgs {
     pub name: String,
 }
 
-/// Calculate [`LogFilter`] from the verbosity.
+/// Calculates [`LogFilter`] from the verbosity.
 fn calc_log_filter(verbosity: Verbosity) -> LogFilter {
     let Verbosity { verbose, quiet } = verbosity;
     assert!(
@@ -94,14 +94,14 @@ fn calc_log_filter(verbosity: Verbosity) -> LogFilter {
     LogFilter::from(default + verbose as i32 - quiet as i32)
 }
 
-/// Detect a shell
+/// Detects the shell
 pub fn detect_shell() -> Shell {
     let shell = Shell::from_env().unwrap_or_else(|| panic!("Could not detect a supported shell"));
     debug!("Detected a supported shell: {shell}");
     shell
 }
 
-/// Generate completion.
+/// Generates completion.
 pub fn complete(args: &CompleteArgs) {
     let shell = match args.shell {
         Some(shell) => shell,
@@ -110,7 +110,7 @@ pub fn complete(args: &CompleteArgs) {
     generate(shell, &mut Cli::command(), &args.name, &mut stdout())
 }
 
-/// Parse and execute a `Cli`.
+/// Parses and executes a `Cli`.
 pub fn exec_cli() {
     let cli = Cli::parse();
     let log_filter = calc_log_filter(cli.verbosity);

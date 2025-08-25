@@ -5,12 +5,12 @@ use crate::report;
 use crate::util::{AppliedTo as _, CommandExtra as _};
 use std::process::Command;
 
-/// Check if cargo should be quiet.
+/// Checks if cargo should be quiet.
 fn should_cargo_be_quiet() -> bool {
     !LogLevel::Report.is_enabled()
 }
 
-/// Run cargo check.
+/// Runs cargo check.
 pub fn run_cargo_check() {
     report!("...Running `cargo check` to check the whole crate...");
     Command::new("cargo")
@@ -25,7 +25,7 @@ pub fn run_cargo_check() {
         .exec();
 }
 
-/// Run cargo check with -vv, returning stderr.
+/// Runs cargo check with -vv, returning stderr.
 pub fn run_cargo_check_vv() -> String {
     report!("...Running `cargo check -vv` to obtain options...");
     let mut stderr = String::new();
@@ -41,7 +41,7 @@ pub fn run_cargo_check_vv() -> String {
     stderr
 }
 
-/// Mark crate dirty.
+/// Marks crate dirty.
 pub fn mark_crate_dirty() {
     report!("...Running `touch src/*.rs` to mark crate dirty...");
     Command::new("bash").args(["-c", "touch src/*.rs"]).exec();

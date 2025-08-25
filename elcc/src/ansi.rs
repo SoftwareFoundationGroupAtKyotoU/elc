@@ -16,14 +16,14 @@ impl fmt::Display for Empty {
 /// Pure painter.
 pub type Painter = Painted<Empty>;
 
-/// Painter doing nothing.
+/// Painter that does nothing.
 pub const NOP: Painter = Painted::new(Empty);
 
-/// Painter lingering.
+/// Painter that lingers.
 pub const LINGER: Painter = NOP.linger();
 
-/// Make output dim.
+/// Painter that makes the output dim.
 pub const DIM: Painter = LINGER.dim();
 
-/// Resetter.
+/// Painter that resets the style.
 pub const RESET: Painter = NOP.resetting();

@@ -37,7 +37,7 @@ impl Callbacks for Entry {
     }
 }
 
-/// Perform the `run` command.
+/// Performs the `run` command.
 pub fn run(run_args: &RunArgs) {
     report!("Initializing for running elcc...");
     let rustc_settings_path = &run_args.rustc_settings_path;
@@ -61,7 +61,7 @@ pub fn run(run_args: &RunArgs) {
     run_compiler(&rustc_args, &mut Entry {});
 }
 
-/// Get a source file.
+/// Gets a source file.
 fn get_source_file(source_map: &SourceMap, path: &str) -> Option<Arc<SourceFile>> {
     source_map
         .get_source_file(&FileName::Real(RealFileName::LocalPath(path.into())))
@@ -71,12 +71,12 @@ fn get_source_file(source_map: &SourceMap, path: &str) -> Option<Arc<SourceFile>
         })
 }
 
-/// Return a span of a source file.
+/// Returns a span of a source file.
 fn source_file_span(source_file: &SourceFile) -> Span {
     Span::with_root_ctxt(source_file.start_pos, source_file.end_position())
 }
 
-/// Print MIR keys.
+/// Prints MIR keys.
 fn print_mir_keys<F: FnMut(DefId) -> bool>(tcx: TyCtxt, pred: &mut F) {
     for &id in tcx.mir_keys(()) {
         let id = id.to_def_id();
@@ -88,7 +88,7 @@ fn print_mir_keys<F: FnMut(DefId) -> bool>(tcx: TyCtxt, pred: &mut F) {
     }
 }
 
-/// Execute a query.
+/// Executes a query.
 fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
     match input.split(' ').collect::<Vec<_>>().as_slice() {
         ["srcs"] => {

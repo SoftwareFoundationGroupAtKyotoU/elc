@@ -6,7 +6,7 @@ use crate::report;
 use crate::rustc_settings::{create_rustc_settings, is_rustc_settings_old};
 use crate::util::exists_path;
 
-/// Perform the init command.
+/// Performs the init command.
 pub fn init(init_args: &InitArgs) {
     report!("Initializing for elcc...");
     let rustc_settings_path = &init_args.rustc_settings_path;

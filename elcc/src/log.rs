@@ -38,14 +38,14 @@ pub enum LogFilter {
 }
 
 impl LogFilter {
-    /// Judge if logs of the level are enabled under the filter.
+    /// Judges if logs of the level are enabled under the filter.
     #[inline]
     fn enables(self, log_level: LogLevel) -> bool {
         (log_level as u8) < (self as u8)
     }
 }
 
-/// Turn [`i32`] into [`LogFilter`].
+/// Turns [`i32`] into [`LogFilter`].
 impl From<i32> for LogFilter {
     fn from(value: i32) -> Self {
         match value {
@@ -62,7 +62,7 @@ impl From<i32> for LogFilter {
 /// Global log filter.
 static LOG_FILTER: OnceLock<LogFilter> = OnceLock::new();
 
-/// Initialize the global log filter.
+/// Initialize sthe global log filter.
 pub fn init_log_filter(log_filter: LogFilter) {
     LOG_FILTER.set(log_filter).unwrap_or_else(|old_log_filter| {
         panic!(
@@ -72,7 +72,7 @@ pub fn init_log_filter(log_filter: LogFilter) {
     })
 }
 
-/// Get the global log filter.
+/// Gets the global log filter.
 #[inline]
 pub fn get_log_filter() -> LogFilter {
     *LOG_FILTER
@@ -81,14 +81,14 @@ pub fn get_log_filter() -> LogFilter {
 }
 
 impl LogLevel {
-    /// Check if the log level is enabled.
+    /// Checks if the log level is enabled.
     #[inline]
     pub fn is_enabled(self) -> bool {
         get_log_filter().enables(self)
     }
 }
 
-/// Output a log. Function version of the [`log!`] macro.
+/// Outputs a log. Function version of the [`log!`] macro.
 pub fn log(log_level: LogLevel, args: Arguments) {
     if log_level.is_enabled() {
         match log_level {
@@ -100,7 +100,7 @@ pub fn log(log_level: LogLevel, args: Arguments) {
     }
 }
 
-/// Output a log of the specified level.
+/// Outputs a log of the specified level.
 #[macro_export]
 macro_rules! log {
     ($log_level:expr, $($args:tt)*) => {
@@ -108,13 +108,13 @@ macro_rules! log {
     };
 }
 
-/// Output an error log.
+/// Outputs an error log.
 #[macro_export]
 macro_rules! error {
     ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Error, $($args)*) }
 }
 
-/// Output an warning log.
+/// Outputs an warning log.
 #[macro_export]
 macro_rules! warn {
     ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Warn, $($args)*) }
@@ -126,13 +126,13 @@ macro_rules! info {
     ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Info, $($args)*) }
 }
 
-/// Output a report log.
+/// Outputs a report log.
 #[macro_export]
 macro_rules! report {
     ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Report, $($args)*) }
 }
 
-/// Output a debug log.
+/// Outputs a debug log.
 #[macro_export]
 macro_rules! debug {
     ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Debug, $($args)*) }
