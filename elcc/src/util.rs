@@ -9,6 +9,11 @@ use std::time::SystemTime;
 /// Result with an empty error.
 pub type Result<T> = std::result::Result<T, ()>;
 
+/// Turns [`bool`] to [`Result<()>`].
+pub fn ok_err(b: bool) -> Result<()> {
+    if b { Ok(()) } else { Err(()) }
+}
+
 /// Allows applying an arbitrary function
 /// in the form of the method [`applied_to`](AppliedTo::applied_to).
 pub trait AppliedTo
@@ -89,9 +94,8 @@ impl CommandExtra for Command {
             .map_err(|err| error!("Error in spawning: {err}"))?
             .wait()
             .map_err(|err| error!("Error in waiting: {err}"))?;
-        exit_status
-            .success()
-            .ok_or_else(|| error!("Failed with the exit_status {exit_status}"))
+        ok_err(exit_status.success())
+            .map_err(|_| error!("Failed with the exit_status {exit_status}"))
     }
 
     fn exec_with_stderr<F: FnMut(String) -> ()>(
@@ -110,8 +114,7 @@ impl CommandExtra for Command {
         let exit_status = child
             .wait()
             .map_err(|err| error!("Error in waiting: {err}"))?;
-        exit_status
-            .success()
-            .ok_or_else(|| error!("Failed with the exit_status {exit_status}"))
+        ok_err(exit_status.success())
+            .map_err(|_| error!("Failed with the exit_status {exit_status}"))
     }
 }
