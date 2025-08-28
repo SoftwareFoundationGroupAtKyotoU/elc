@@ -8,8 +8,8 @@ description = "Procedural macros for Elc"
 
 [dependencies]
 proc-macro2 = "1.0.101"
-syn = { version = "2.0.106", features = ["full"] }
 quote = "1.0.40"
+syn = { version = "2.0.106", features = ["full"] }
 
 [lib]
 proc-macro = true
