@@ -42,16 +42,17 @@ pub fn run(run_args: &RunArgs) -> Result<()> {
     report!("Initializing for running elcc...");
     let rustc_settings_path = &run_args.rustc_settings_path;
     run_cargo_check()?;
-    let should_create_rustc_settings = run_args.force_init
-        || !exists_path(rustc_settings_path)?
-        || (is_rustc_settings_old(rustc_settings_path)?
-            && {
-                report!(
-                    "...Renewing the rustc settings file at `{rustc_settings_path}` because it has been out of date..."
-                );
-                true
-            });
-    if should_create_rustc_settings {
+    if run_args.force_init
+        || !run_args.no_init
+            && (!exists_path(rustc_settings_path)?
+                || (is_rustc_settings_old(rustc_settings_path)?
+                    && {
+                        report!(
+                            "...Renewing the rustc settings file at `{rustc_settings_path}` because it has been out of date..."
+                        );
+                        true
+                    }))
+    {
         create_rustc_settings(rustc_settings_path)?;
     }
     let rustc_args = load_rustc_settings(rustc_settings_path, &run_args.rustc_args)?;

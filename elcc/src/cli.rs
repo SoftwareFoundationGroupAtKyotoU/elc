@@ -63,8 +63,11 @@ pub struct InitArgs {
 #[derive(Args, Debug)]
 pub struct RunArgs {
     /// Force initialization of the rustc settings.
-    #[arg(long)]
+    #[arg(long, conflicts_with("no_init"))]
     pub force_init: bool,
+    /// Suppress initialization of the rustc settings.
+    #[arg(long)]
+    pub no_init: bool,
     /// Path to the rustc settings.
     #[arg(long("rustc-settings"), value_hint = ValueHint::FilePath, default_value = DEFAULT_RUSTC_SETTINGS_PATH)]
     pub rustc_settings_path: String,
