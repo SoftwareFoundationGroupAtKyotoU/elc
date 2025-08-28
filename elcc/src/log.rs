@@ -113,7 +113,7 @@ pub fn output_error(args: Arguments) {
 macro_rules! error {
     ($($args:tt)*) => {
         if crate::is_enabled!(Error) {
-            crate::log::output_error(format_args!($($args)*))
+            crate::log::output_error(format_args!($($args)*));
         }
     }
 }
@@ -129,7 +129,7 @@ pub fn output_warn(args: Arguments) {
 macro_rules! warn {
     ($($args:tt)*) => {
         if crate::is_enabled!(Warn) {
-            crate::log::output_warn(format_args!($($args)*))
+            crate::log::output_warn(format_args!($($args)*));
         }
     }
 }
@@ -145,7 +145,7 @@ pub fn output_info(args: Arguments) {
 macro_rules! info {
     ($($args:tt)*) => {
         if crate::is_enabled!(Info) {
-            crate::log::output_info(format_args!($($args)*))
+            crate::log::output_info(format_args!($($args)*));
         }
     }
 }
@@ -161,7 +161,7 @@ pub fn output_report(args: Arguments) {
 macro_rules! report {
     ($($args:tt)*) => {
         if crate::is_enabled!(Report) {
-            crate::log::output_report(format_args!($($args)*))
+            crate::log::output_report(format_args!($($args)*));
         }
     }
 }
@@ -177,7 +177,7 @@ pub fn output_debug(args: Arguments) {
 macro_rules! debug {
     ($($args:tt)*) => {
         if crate::is_enabled!(Debug) {
-            crate::log::output_debug(format_args!($($args)*))
+            crate::log::output_debug(format_args!($($args)*));
         }
     }
 }
