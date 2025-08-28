@@ -23,5 +23,5 @@ use crate::cli::exec_cli;
 
 /// The entry point.
 fn main() {
-    exec_cli();
+    let _ = exec_cli();
 }

@@ -1,8 +1,8 @@
 //! For using cargo.
 
 use crate::log::LogLevel;
-use crate::report;
 use crate::util::{AppliedTo as _, CommandExtra as _};
+use crate::{debug, report};
 use std::process::Command;
 
 /// Checks if cargo should be quiet.
@@ -32,9 +32,7 @@ pub fn run_cargo_check_vv() -> String {
     Command::new("cargo")
         .args(["check", "-vv"])
         .exec_with_stderr(&mut |line| {
-            if LogLevel::Debug.is_enabled() {
-                eprintln!("{line}");
-            }
+            debug!("{line}");
             stderr.push_str(&line);
             stderr.push('\n');
         });

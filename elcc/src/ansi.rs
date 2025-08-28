@@ -22,6 +22,12 @@ pub const NOP: Painter = Painted::new(Empty);
 /// Painter that lingers.
 pub const LINGER: Painter = NOP.linger();
 
+/// Painter that makes the output red.
+pub const RED: Painter = LINGER.red();
+
+/// Painter that makes the output bold.
+pub const BOLD: Painter = LINGER.bold();
+
 /// Painter that makes the output dim.
 pub const DIM: Painter = LINGER.dim();
 

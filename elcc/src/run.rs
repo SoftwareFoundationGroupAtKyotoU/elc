@@ -4,7 +4,7 @@ use crate::cargo::run_cargo_check;
 use crate::cli::RunArgs;
 use crate::rustc_settings::{create_rustc_settings, is_rustc_settings_old, load_rustc_settings};
 use crate::util::{exists_path, flush_stdout, read_line_trim};
-use crate::{debug, info, report, warn};
+use crate::{debug, report, warn};
 use rustc_ast::Crate;
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_hir::def_id::DefId;
@@ -66,7 +66,7 @@ fn get_source_file(source_map: &SourceMap, path: &str) -> Option<Arc<SourceFile>
     source_map
         .get_source_file(&FileName::Real(RealFileName::LocalPath(path.into())))
         .or_else(|| {
-            warn!("    Could not find a source file at `{path}`!");
+            warn!("Could not find a source file at `{path}`!");
             None
         })
 }
@@ -113,7 +113,7 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
                 .find(|&&id| &tcx.def_path_str(id) == name);
             let id = match id {
                 None => {
-                    warn!("Could not find an MIR key whose name is `{name}`");
+                    warn!("Could not find an MIR key whose name is `{name}`.");
                     return None;
                 }
                 Some(&id) => id,
@@ -137,10 +137,10 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
             print_mir_keys(tcx, &mut |id| file_span.contains(tcx.def_span(id)));
         }
         ["quit"] => {
-            info!("    OK, quitting now.");
+            println!("    OK, quitting now.");
             return Some(());
         }
-        _ => warn!("    Unrecognized query: {input}"),
+        _ => warn!("Unrecognized query `{input}`."),
     }
     None
 }

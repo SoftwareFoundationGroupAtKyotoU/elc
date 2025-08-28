@@ -1,83 +1,89 @@
 //! Logging.
 
-use crate::ansi::{DIM, RESET};
+use crate::ansi::{BOLD, DIM, RED, RESET};
 use std::fmt::Arguments;
-use std::sync::OnceLock;
+use std::mem::transmute;
+use std::sync::atomic::{AtomicI8, Ordering};
 
 /// Level of a log.
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
 pub enum LogLevel {
     /// Error.
-    Error = 0,
+    Error = -2,
     /// Warning.
-    Warn = 1,
+    Warn = -1,
     /// Information.
-    Info = 2,
+    Info = 0,
     /// Report.
-    Report = 3,
+    Report = 1,
     /// Debug.
-    Debug = 4,
+    Debug = 2,
 }
 
 /// Filter of a log.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum LogFilter {
-    /// No log at all.
-    Off = 0,
-    /// Error.
-    Error = 1,
-    /// Warning.
-    Warn = 2,
-    /// Information.
-    Info = 3,
-    /// Report.
-    Report = 4,
-    /// Debug.
-    Debug = 5,
+    /// Up to error logs.
+    Error = -2,
+    /// Up to warning logs.
+    Warn = -1,
+    /// Up to information logs.
+    #[default]
+    Info = 0,
+    /// Up to report logs.
+    Report = 1,
+    /// Up to debug logs.
+    Debug = 2,
 }
 
 impl LogFilter {
     /// Judges if logs of the level are enabled under the filter.
     #[inline]
     fn enables(self, log_level: LogLevel) -> bool {
-        (log_level as u8) < (self as u8)
+        (log_level as i8) <= (self as i8)
     }
 }
 
-/// Turns [`i32`] into [`LogFilter`].
-impl From<i32> for LogFilter {
-    fn from(value: i32) -> Self {
+/// Error for turning [`LogFilter`] from an integer.
+#[derive(Debug, Clone, Copy)]
+pub enum LogFilterError {
+    /// Too verbose.
+    TooVerbose,
+    /// Too quiet.
+    TooQuiet,
+}
+
+/// Turns [`i8`] into [`LogFilter`].
+impl TryFrom<i8> for LogFilter {
+    type Error = LogFilterError;
+    fn try_from(value: i8) -> Result<Self, LogFilterError> {
         match value {
-            1 => LogFilter::Error,
-            2 => LogFilter::Warn,
-            3 => LogFilter::Info,
-            4 => LogFilter::Report,
-            _ if value <= 0 => LogFilter::Off,
-            _ => LogFilter::Debug,
+            -2 => Ok(LogFilter::Error),
+            -1 => Ok(LogFilter::Warn),
+            0 => Ok(LogFilter::Info),
+            1 => Ok(LogFilter::Report),
+            2 => Ok(LogFilter::Debug),
+            _ if value > 2 => Err(LogFilterError::TooVerbose),
+            _ if value < -2 => Err(LogFilterError::TooQuiet),
+            _ => unreachable!(),
         }
     }
 }
 
-/// Global log filter.
-static LOG_FILTER: OnceLock<LogFilter> = OnceLock::new();
+/// Global log filter. Always set to a value of [`LogFilter`].
+static LOG_FILTER: AtomicI8 = AtomicI8::new(LogFilter::Info as i8);
+// Cannot use `LogFilter::default()` here because the function is not marked `const`.
 
-/// Initialize sthe global log filter.
-pub fn init_log_filter(log_filter: LogFilter) {
-    LOG_FILTER.set(log_filter).unwrap_or_else(|old_log_filter| {
-        panic!(
-            "The global log filter has already been initialized to {:?}",
-            old_log_filter
-        )
-    })
+/// Sets the global log filter.
+#[inline]
+pub fn set_log_filter(log_filter: LogFilter) {
+    LOG_FILTER.store(log_filter as i8, Ordering::Release);
 }
 
 /// Gets the global log filter.
 #[inline]
 pub fn get_log_filter() -> LogFilter {
-    *LOG_FILTER
-        .get()
-        .expect("The global log filter has not been set")
+    unsafe { transmute(LOG_FILTER.load(Ordering::Acquire)) }
 }
 
 impl LogLevel {
@@ -88,52 +94,90 @@ impl LogLevel {
     }
 }
 
-/// Outputs a log. Function version of the [`log!`] macro.
-pub fn log(log_level: LogLevel, args: Arguments) {
-    if log_level.is_enabled() {
-        match log_level {
-            LogLevel::Debug => {
-                eprintln!("{DIM}# {}{RESET}", args);
-            }
-            _ => eprintln!("{}", args),
+/// Utility macro for checking if the log level is enabled.
+#[macro_export]
+macro_rules! is_enabled {
+    ($level:ident) => {
+        crate::log::LogLevel::$level.is_enabled()
+    };
+}
+
+/// Outputs an error log. Body of the [`error!`] macro.
+#[inline]
+pub fn output_error(args: Arguments) {
+    eprintln!("{BOLD}{RED}Error{RESET}{BOLD}: {args}{RESET}");
+}
+
+/// Outputs an error log if enabled.
+#[macro_export]
+macro_rules! error {
+    ($($args:tt)*) => {
+        if crate::is_enabled!(Error) {
+            crate::log::output_error(format_args!($($args)*))
         }
     }
 }
 
-/// Outputs a log of the specified level.
-#[macro_export]
-macro_rules! log {
-    ($log_level:expr, $($args:tt)*) => {
-        crate::log::log($log_level, format_args!($($args)*))
-    };
+/// Outputs a warning log. Body of the [`warn!`] macro.
+#[inline]
+pub fn output_warn(args: Arguments) {
+    eprintln!("{BOLD}Warning: {args}{RESET}");
 }
 
-/// Outputs an error log.
-#[macro_export]
-macro_rules! error {
-    ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Error, $($args)*) }
-}
-
-/// Outputs an warning log.
+/// Outputs a warning log if enabled.
 #[macro_export]
 macro_rules! warn {
-    ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Warn, $($args)*) }
+    ($($args:tt)*) => {
+        if crate::is_enabled!(Warn) {
+            crate::log::output_warn(format_args!($($args)*))
+        }
+    }
 }
 
-/// Output an information log.
+/// Outputs an information log. Body of the [`info!`] macro.
+#[inline]
+pub fn output_info(args: Arguments) {
+    eprintln!("{BOLD}Info{RESET}: {args}");
+}
+
+/// Outputs an information log if enabled.
 #[macro_export]
 macro_rules! info {
-    ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Info, $($args)*) }
+    ($($args:tt)*) => {
+        if crate::is_enabled!(Info) {
+            crate::log::output_info(format_args!($($args)*))
+        }
+    }
 }
 
-/// Outputs a report log.
+/// Outputs a report log. Body of the [`report!`] macro.
+#[inline]
+pub fn output_report(args: Arguments) {
+    eprintln!("+ {args}");
+}
+
+/// Outputs a report log if enabled.
 #[macro_export]
 macro_rules! report {
-    ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Report, $($args)*) }
+    ($($args:tt)*) => {
+        if crate::is_enabled!(Report) {
+            crate::log::output_report(format_args!($($args)*))
+        }
+    }
 }
 
-/// Outputs a debug log.
+/// Outputs a debug log. Body of the [`debug!`] macro.
+#[inline]
+pub fn output_debug(args: Arguments) {
+    eprintln!("{DIM}# {args}{RESET}");
+}
+
+/// Outputs a debug log if enabled.
 #[macro_export]
 macro_rules! debug {
-    ($($args:tt)*) => { crate::log!(crate::log::LogLevel::Debug, $($args)*) }
+    ($($args:tt)*) => {
+        if crate::is_enabled!(Debug) {
+            crate::log::output_debug(format_args!($($args)*))
+        }
+    }
 }

@@ -2,9 +2,9 @@
 
 use crate::cargo::run_cargo_check;
 use crate::cli::InitArgs;
-use crate::report;
 use crate::rustc_settings::{create_rustc_settings, is_rustc_settings_old};
 use crate::util::exists_path;
+use crate::{info, report};
 
 /// Performs the init command.
 pub fn init(init_args: &InitArgs) {
@@ -14,8 +14,8 @@ pub fn init(init_args: &InitArgs) {
         && exists_path(rustc_settings_path)
         && !is_rustc_settings_old(rustc_settings_path)
     {
-        report!(
-            "...The rustc settings file already exists at `{rustc_settings_path}` and seems up to date. Pass -f/--force to force re-initialization."
+        info!(
+            "The rustc settings file already exists at `{rustc_settings_path}` and seems up to date. Pass -f/--force to force re-initialization."
         );
         return;
     }

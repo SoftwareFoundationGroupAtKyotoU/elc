@@ -1,7 +1,7 @@
 //! For the command-line interface.
 
-use crate::log::{LogFilter, init_log_filter};
-use crate::{debug, init, run};
+use crate::log::{LogFilter, LogFilterError, set_log_filter};
+use crate::{debug, error, init, run};
 use clap::{ArgAction, Args, CommandFactory as _, Parser, Subcommand};
 use clap_complete::Shell;
 use clap_complete::aot::{ValueHint, generate};
@@ -84,14 +84,18 @@ pub struct CompleteArgs {
 }
 
 /// Calculates [`LogFilter`] from the verbosity.
-fn calc_log_filter(verbosity: Verbosity) -> LogFilter {
+fn calc_log_filter(verbosity: Verbosity) -> Result<LogFilter, ()> {
     let Verbosity { verbose, quiet } = verbosity;
-    assert!(
-        verbose == 0 || quiet == 0,
-        "Should not set both -v/--verbose and -q/-quiet",
-    );
-    let default = LogFilter::Info as i32;
-    LogFilter::from(default + verbose as i32 - quiet as i32)
+    if verbose != 0 && quiet != 0 {
+        error!("Should not set both -v/--verbose and -q/--quiet.");
+        return Err(());
+    }
+    LogFilter::try_from(LogFilter::default() as i8 + verbose as i8 - quiet as i8).map_err(|err| {
+        match err {
+            LogFilterError::TooVerbose => error!("Too many -v/--verbose ({verbose}) is specified!"),
+            LogFilterError::TooQuiet => error!("Too many -q/--quiet ({quiet}) is specified!"),
+        }
+    })
 }
 
 /// Detects the shell
@@ -111,22 +115,21 @@ pub fn complete(args: &CompleteArgs) {
 }
 
 /// Parses and executes a `Cli`.
-pub fn exec_cli() {
+pub fn exec_cli() -> Result<(), ()> {
     let cli = Cli::parse();
-    let log_filter = calc_log_filter(cli.verbosity);
-    init_log_filter(log_filter);
     if !cli.plain {
         yansi::enable();
-        debug!("Enabled ANSI output.");
     } else {
         yansi::disable();
-        debug!("Disabled ANSI output.");
     }
-    debug!("Cli argument: {cli:?}");
+    let log_filter = calc_log_filter(cli.verbosity)?;
+    set_log_filter(log_filter);
     debug!("Log filter: {log_filter:?}");
+    debug!("Cli argument: {cli:?}");
     match &cli.command {
         Command::Init(args) => init::init(args),
         Command::Run(args) => run::run(args),
         Command::Complete(args) => complete(args),
     }
+    Ok(())
 }
