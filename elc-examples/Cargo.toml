@@ -6,4 +6,4 @@ authors = ["Yusuke Matsushita <ysk.m24t@gmail.com>"]
 description = "Examples for Elc"
 
 [dependencies]
-clap = { version = "4.5.45", features = ["derive"] }
+clap = { version = "4.5.46", features = ["derive"] }
