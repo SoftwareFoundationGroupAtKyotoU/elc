@@ -4,7 +4,7 @@ use crate::cargo::run_cargo_check;
 use crate::cli::RunArgs;
 use crate::rustc_settings::{create_rustc_settings, is_rustc_settings_old, load_rustc_settings};
 use crate::util::{Result, exists_path, flush_stdout, read_line_trim};
-use crate::{debug, error, report, warn};
+use crate::{debug, error, report, warn, xprint};
 use rustc_ast::Crate;
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_hir::def_id::DefId;
@@ -143,7 +143,7 @@ fn run_body(tcx: TyCtxt) -> Result<()> {
     report!("Running elcc...");
     let source_map = get_source_map().expect("Getting the source map failed");
     loop {
-        print!("  Enter a query: ");
+        xprint!("  <bold>Enter a query</bold>: ");
         flush_stdout()?;
         let input = read_line_trim()?;
         debug!("Input: {input}");

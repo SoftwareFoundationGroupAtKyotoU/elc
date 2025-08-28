@@ -1,5 +1,6 @@
 //! For the command-line interface.
 
+use crate::ansi::{set_ansi_stderr, set_ansi_stdout};
 use crate::log::{LogFilter, LogFilterError, set_log_filter};
 use crate::util::Result;
 use crate::{debug, error, init, run};
@@ -15,9 +16,18 @@ pub struct Cli {
     /// Verbosity.
     #[command(flatten)]
     pub verbosity: Verbosity,
-    /// Suppress ANSI styling of logs.
-    #[arg(long, global = true, default_value_t = !stderr().is_terminal())]
-    pub no_ansi: bool,
+    /// Force ANSI styling of stdout.
+    #[arg(long, global = true, conflicts_with("no_ansi_out"))]
+    pub force_ansi_out: bool,
+    /// Suppress ANSI styling of stdout.
+    #[arg(long, global = true)]
+    pub no_ansi_out: bool,
+    /// Force ANSI styling of stderr.
+    #[arg(long, global = true, conflicts_with("no_ansi_err"))]
+    pub force_ansi_err: bool,
+    /// Suppress ANSI styling of stderr.
+    #[arg(long, global = true)]
+    pub no_ansi_err: bool,
     /// Command.
     #[command(subcommand)]
     pub command: Command,
@@ -122,11 +132,8 @@ pub fn complete(args: &CompleteArgs) -> Result<()> {
 /// Parses and executes a `Cli`.
 pub fn exec_cli() -> Result<()> {
     let cli = Cli::parse();
-    if !cli.no_ansi {
-        yansi::enable();
-    } else {
-        yansi::disable();
-    }
+    set_ansi_stdout(cli.force_ansi_out || !cli.no_ansi_out && stdout().is_terminal());
+    set_ansi_stderr(cli.force_ansi_err || !cli.no_ansi_err && stderr().is_terminal());
     let log_filter = calc_log_filter(cli.verbosity)?;
     set_log_filter(log_filter);
     debug!("Log filter: {log_filter:?}");

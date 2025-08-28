@@ -6,11 +6,11 @@ authors = ["Yusuke Matsushita <ysk.m24t@gmail.com>"]
 description = "Elc compiler based on rustc."
 
 [dependencies]
+color-print = "0.3.7"
 clap = { version = "4.5.46", features = ["derive"] }
 clap_complete = "4.5.57"
 lazy_static = "1.5.0"
 regex = "1.11.2"
-yansi = "1.0.1"
 
 [package.metadata.rust-analyzer]
 rustc_private = true

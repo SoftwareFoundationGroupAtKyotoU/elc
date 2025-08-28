@@ -1,35 +1,86 @@
 //! ANSI styling.
 
-use std::fmt;
-use yansi::Painted;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Dummy data type for an empty display output.
-#[derive(Debug, Clone, Copy)]
-pub struct Empty;
+/// Whether to use ANSI styling on stdout.
+static ANSI_STDOUT: AtomicBool = AtomicBool::new(false);
 
-impl fmt::Display for Empty {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
+/// Whether to use ANSI styling on stderr.
+static ANSI_STDERR: AtomicBool = AtomicBool::new(false);
+
+/// Set ANSI styling on stdout.
+pub fn set_ansi_stdout(b: bool) {
+    ANSI_STDOUT.store(b, Ordering::Release);
 }
 
-/// Pure painter.
-pub type Painter = Painted<Empty>;
+/// Set ANSI styling on stderr.
+pub fn set_ansi_stderr(b: bool) {
+    ANSI_STDERR.store(b, Ordering::Release);
+}
 
-/// Painter that does nothing.
-pub const NOP: Painter = Painted::new(Empty);
+/// Get ANSI styling on stdout.
+pub fn get_ansi_stdout() -> bool {
+    ANSI_STDOUT.load(Ordering::Acquire)
+}
 
-/// Painter that lingers.
-pub const LINGER: Painter = NOP.linger();
+/// Get ANSI styling on stderr.
+pub fn get_ansi_stderr() -> bool {
+    ANSI_STDERR.load(Ordering::Acquire)
+}
 
-/// Painter that makes the output red.
-pub const RED: Painter = LINGER.red();
+/// Macro applying [`cstr`] or [`untagged`] to the first argument depending on [`get_ansi_stdout`].
+#[macro_export]
+macro_rules! xapply_stdout {
+    ($macro:path; $str:tt $($args:tt)*) => {
+        if crate::ansi::get_ansi_stdout() {
+            $macro!(::color_print::cstr!($str) $($args)*)
+        } else {
+            $macro!(::color_print::untagged!($str) $($args)*)
+        }
+    };
 
-/// Painter that makes the output bold.
-pub const BOLD: Painter = LINGER.bold();
+}
 
-/// Painter that makes the output dim.
-pub const DIM: Painter = LINGER.dim();
+/// Macro application with conditional ANSI styling on stdout.
+#[macro_export]
+macro_rules! xapply_stderr {
+    ($macro:path; $str:tt $($args:tt)*) => {
+        if crate::ansi::get_ansi_stderr() {
+            $macro!(::color_print::cstr!($str) $($args)*)
+        } else {
+            $macro!(::color_print::untagged!($str) $($args)*)
+        }
+    };
+}
 
-/// Painter that resets the style.
-pub const RESET: Painter = NOP.resetting();
+/// [`println`] with conditional ANSI styling.
+#[macro_export]
+macro_rules! xprintln {
+    ($($args:tt)+) => {
+        crate::xapply_stdout!(::std::println; $($args)+)
+    };
+}
+
+/// [`eprintln`] with conditional ANSI styling.
+#[macro_export]
+macro_rules! xeprintln {
+    ($($args:tt)+) => {
+        crate::xapply_stderr!(::std::eprintln; $($args)+)
+    };
+}
+
+/// [`print`] with conditional ANSI styling.
+#[macro_export]
+macro_rules! xprint {
+    ($($args:tt)+) => {
+        crate::xapply_stdout!(::std::print; $($args)+)
+    };
+}
+
+/// [`eprint`] with conditional ANSI styling.
+#[macro_export]
+macro_rules! xeprint {
+    ($($args:tt)+) => {
+        crate::xapply_stderr!(::std::eprint; $($args)+)
+    };
+}

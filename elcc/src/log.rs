@@ -1,6 +1,6 @@
 //! Logging.
 
-use crate::ansi::{BOLD, DIM, RED, RESET};
+use crate::xeprintln;
 use std::fmt::Arguments;
 use std::mem::transmute;
 use std::sync::atomic::{AtomicI8, Ordering};
@@ -105,7 +105,7 @@ macro_rules! is_enabled {
 /// Outputs an error log. Body of the [`error!`] macro.
 #[inline]
 pub fn output_error(args: Arguments) {
-    eprintln!("{BOLD}{RED}Error{RESET}{BOLD}: {args}{RESET}");
+    xeprintln!("<bold><red>Error</red>: {}</bold>", args);
 }
 
 /// Outputs an error log if enabled.
@@ -121,7 +121,7 @@ macro_rules! error {
 /// Outputs a warning log. Body of the [`warn!`] macro.
 #[inline]
 pub fn output_warn(args: Arguments) {
-    eprintln!("{BOLD}Warning: {args}{RESET}");
+    xeprintln!("<bold>Warning: {}</bold>", args);
 }
 
 /// Outputs a warning log if enabled.
@@ -137,7 +137,7 @@ macro_rules! warn {
 /// Outputs an information log. Body of the [`info!`] macro.
 #[inline]
 pub fn output_info(args: Arguments) {
-    eprintln!("{BOLD}Info{RESET}: {args}");
+    xeprintln!("<bold>Info</bold>: {}", args);
 }
 
 /// Outputs an information log if enabled.
@@ -169,7 +169,7 @@ macro_rules! report {
 /// Outputs a debug log. Body of the [`debug!`] macro.
 #[inline]
 pub fn output_debug(args: Arguments) {
-    eprintln!("{DIM}# {args}{RESET}");
+    xeprintln!("<dim># {}</dim>", args);
 }
 
 /// Outputs a debug log if enabled.
