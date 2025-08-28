@@ -3,8 +3,8 @@
 use crate::cargo::run_cargo_check;
 use crate::cli::RunArgs;
 use crate::rustc_settings::{create_rustc_settings, is_rustc_settings_old, load_rustc_settings};
-use crate::util::{exists_path, flush_stdout, read_line_trim};
-use crate::{debug, report, warn};
+use crate::util::{Result, exists_path, flush_stdout, read_line_trim};
+use crate::{debug, error, report, warn};
 use rustc_ast::Crate;
 use rustc_driver::{Callbacks, Compilation, run_compiler};
 use rustc_hir::def_id::DefId;
@@ -32,19 +32,19 @@ impl Callbacks for Entry {
     }
     fn after_analysis(&mut self, _: &Compiler, tcx: TyCtxt) -> Compilation {
         report!("...Analysis succeeded!");
-        run_body(tcx);
+        let _ = run_body(tcx);
         Compilation::Stop
     }
 }
 
 /// Performs the `run` command.
-pub fn run(run_args: &RunArgs) {
+pub fn run(run_args: &RunArgs) -> Result<()> {
     report!("Initializing for running elcc...");
     let rustc_settings_path = &run_args.rustc_settings_path;
-    run_cargo_check();
+    run_cargo_check()?;
     let should_create_rustc_settings = run_args.force_init
-        || !exists_path(rustc_settings_path)
-        || (is_rustc_settings_old(rustc_settings_path)
+        || !exists_path(rustc_settings_path)?
+        || (is_rustc_settings_old(rustc_settings_path)?
             && {
                 report!(
                     "...Renewing the rustc settings file at `{rustc_settings_path}` because it has been out of date..."
@@ -52,23 +52,21 @@ pub fn run(run_args: &RunArgs) {
                 true
             });
     if should_create_rustc_settings {
-        create_rustc_settings(rustc_settings_path);
+        create_rustc_settings(rustc_settings_path)?;
     }
-    let rustc_args = load_rustc_settings(rustc_settings_path, &run_args.rustc_args);
+    let rustc_args = load_rustc_settings(rustc_settings_path, &run_args.rustc_args)?;
     debug!("Arguments to rustc: {rustc_args:?}");
     report!("...Done!");
     report!("Running rustc...");
     run_compiler(&rustc_args, &mut Entry {});
+    Ok(())
 }
 
 /// Gets a source file.
-fn get_source_file(source_map: &SourceMap, path: &str) -> Option<Arc<SourceFile>> {
+fn get_source_file(source_map: &SourceMap, path: &str) -> Result<Arc<SourceFile>> {
     source_map
         .get_source_file(&FileName::Real(RealFileName::LocalPath(path.into())))
-        .or_else(|| {
-            warn!("Could not find a source file at `{path}`!");
-            None
-        })
+        .ok_or_else(|| warn!("Could not find a source file at `{path}`!"))
 }
 
 /// Returns a span of a source file.
@@ -89,7 +87,7 @@ fn print_mir_keys<F: FnMut(DefId) -> bool>(tcx: TyCtxt, pred: &mut F) {
 }
 
 /// Executes a query.
-fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
+fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Result<bool> {
     match input.split(' ').collect::<Vec<_>>().as_slice() {
         ["srcs"] => {
             for source_file in source_map.files().iter() {
@@ -107,17 +105,11 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
             println!("    Source:\n{}", src);
         }
         ["mir", name] => {
-            let id = tcx
+            let &id = tcx
                 .mir_keys(())
                 .iter()
-                .find(|&&id| &tcx.def_path_str(id) == name);
-            let id = match id {
-                None => {
-                    warn!("Could not find an MIR key whose name is `{name}`.");
-                    return None;
-                }
-                Some(&id) => id,
-            };
+                .find(|&&id| &tcx.def_path_str(id) == name)
+                .ok_or_else(|| warn!("Could not find an MIR key whose name is `{name}`."))?;
             write_mir_fn(
                 tcx,
                 tcx.optimized_mir(id),
@@ -125,7 +117,7 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
                 &mut stdout(),
                 PrettyPrintMirOptions::from_cli(tcx),
             )
-            .unwrap_or_else(|err| panic!("Error in printing MIR: {err}"));
+            .map_err(|err| error!("Error in printing MIR: {err}"))?;
         }
         ["mirs"] => {
             println!("    MIR keys of the crate:");
@@ -138,25 +130,25 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Option<()> {
         }
         ["quit"] => {
             println!("    OK, quitting now.");
-            return Some(());
+            return Ok(true);
         }
         _ => warn!("Unrecognized query `{input}`."),
     }
-    None
+    Ok(false)
 }
 
 /// Body executed by [`after_analysis`](Callbacks::after_analysis).
-fn run_body(tcx: TyCtxt) {
+fn run_body(tcx: TyCtxt) -> Result<()> {
     report!("Running elcc...");
     let source_map = get_source_map().expect("Getting the source map failed");
     loop {
         print!("  Enter a query: ");
-        flush_stdout();
-        let input = read_line_trim();
+        flush_stdout()?;
+        let input = read_line_trim()?;
         debug!("Input: {input}");
-        let res = exec_query(tcx, &source_map, &input);
-        if res.is_some() {
-            return;
+        let res = exec_query(tcx, &source_map, &input)?;
+        if res {
+            return Ok(());
         }
     }
 }

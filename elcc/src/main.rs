@@ -1,6 +1,7 @@
 //! Elc compiler based on rustc.
 
 #![feature(rustc_private)]
+#![feature(bool_to_result)]
 #![macro_use]
 
 extern crate rustc_ast;

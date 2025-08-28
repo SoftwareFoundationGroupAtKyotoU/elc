@@ -1,8 +1,8 @@
 //! For the rustc settings.
 
 use crate::cargo::{mark_crate_dirty, run_cargo_check_vv};
-use crate::util::{exists_path, get_time_modified, read_file_utf8};
-use crate::{debug, report};
+use crate::util::{Result, exists_path, get_time_modified, read_file_utf8};
+use crate::{debug, error, report};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{env, fs};
@@ -14,21 +14,12 @@ const CARGO_MANIFEST_PATH: &'static str = "Cargo.toml";
 const CARGO_LOCK_PATH: &'static str = "Cargo.lock";
 
 /// Checks if the rustc settings file is out of date.
-pub fn is_rustc_settings_old(rustc_settings_path: &str) -> bool {
-    let base_time = match get_time_modified(rustc_settings_path) {
-        None => return false,
-        Some(base_time) => base_time,
-    };
-    exists_path(CARGO_MANIFEST_PATH)
-        && match get_time_modified(CARGO_MANIFEST_PATH) {
-            None => false,
-            Some(cargo_toml_time) => base_time < cargo_toml_time,
-        }
-        || exists_path(CARGO_LOCK_PATH)
-            && match get_time_modified(CARGO_LOCK_PATH) {
-                None => false,
-                Some(cargo_lock_time) => base_time < cargo_lock_time,
-            }
+pub fn is_rustc_settings_old(rustc_settings_path: &str) -> Result<bool> {
+    let base_time = get_time_modified(rustc_settings_path)?;
+    Ok(
+        exists_path(CARGO_MANIFEST_PATH)? && base_time < get_time_modified(CARGO_MANIFEST_PATH)?
+            || exists_path(CARGO_LOCK_PATH)? && base_time < get_time_modified(CARGO_LOCK_PATH)?,
+    )
 }
 
 /// Separator between the environment arguments and options.
@@ -50,15 +41,15 @@ fn modify_rustc_args(rustc_args: String) -> String {
 }
 
 /// Gets rustc settings.
-fn get_rustc_settings() -> String {
-    let stderr = run_cargo_check_vv();
+fn get_rustc_settings() -> Result<String> {
+    let stderr = run_cargo_check_vv()?;
     lazy_static! {
         static ref STDERR_REGEX: Regex =
             Regex::new("\\n     Running `((?:.|\\n)+) (\\S*?rustc) (.+?)`\\n").unwrap();
     }
     let (_, [rustc_env, rustc_name, rustc_args]) = STDERR_REGEX
         .captures(&stderr)
-        .unwrap_or_else(|| panic!("Could not find a rustc command in:\n{stderr}"))
+        .ok_or_else(|| error!("Could not find a rustc command in:\n{stderr}"))?
         .extract();
     debug!("Found a rustc command:");
     debug!("  Environment: {rustc_env}");
@@ -70,25 +61,25 @@ fn get_rustc_settings() -> String {
     );
     let rustc_args = modify_rustc_args(rustc_args.to_owned());
     debug!("Modified arguments: {rustc_args}");
-    format!("{rustc_env}{RUSTC_SETTINGS_SEP}{rustc_args}")
+    Ok(format!("{rustc_env}{RUSTC_SETTINGS_SEP}{rustc_args}"))
 }
 
 /// Creates rustc settings.
-pub fn create_rustc_settings(rustc_settings_path: &str) {
-    mark_crate_dirty();
-    let rustc_settings = get_rustc_settings();
+pub fn create_rustc_settings(rustc_settings_path: &str) -> Result<()> {
+    mark_crate_dirty()?;
+    let rustc_settings = get_rustc_settings()?;
     report!("...Saving the rustc settings to `{rustc_settings_path}`...");
     fs::write(rustc_settings_path, rustc_settings)
-        .unwrap_or_else(|err| panic!("Could not write the rustc settings: {err}"));
+        .map_err(|err| error!("Could not write the rustc settings: {err}"))
 }
 
 /// Processes environment variables.
-fn process_env(mut env: &str) {
+fn process_env(mut env: &str) -> Result<()> {
     debug!("Parsing environment variables: {env}");
     loop {
         let (key, env_) = env
             .split_once('=')
-            .unwrap_or_else(|| panic!("Cannot find '=' in {env}"));
+            .ok_or_else(|| error!("Cannot find '=' in {env}"))?;
         env = env_;
         key.chars().for_each(|c| {
             assert!(
@@ -102,7 +93,7 @@ fn process_env(mut env: &str) {
             loop {
                 let (val_, env_) = env
                     .split_once('\'')
-                    .unwrap_or_else(|| panic!("Could not find a closing quote in {env}"));
+                    .ok_or_else(|| error!("Could not find a closing quote in {env}"))?;
                 val.push_str(val_);
                 env = env_;
                 if env.starts_with(' ') || env.is_empty() {
@@ -122,7 +113,7 @@ fn process_env(mut env: &str) {
             env::set_var(key, val);
         }
         if env.is_empty() {
-            break;
+            return Ok(());
         }
         assert!(
             env.chars().nth(0) == Some(' '),
@@ -133,19 +124,25 @@ fn process_env(mut env: &str) {
 }
 
 /// Loads rustc settings, sets environment variables and constructs the arguments for `rustc`.
-pub fn load_rustc_settings(rustc_settings_path: &str, last_args: &Vec<String>) -> Vec<String> {
+pub fn load_rustc_settings(
+    rustc_settings_path: &str,
+    last_args: &Vec<String>,
+) -> Result<Vec<String>> {
     report!("...Loading the rustc settings from `{rustc_settings_path}`...");
-    let rustc_settings = read_file_utf8(rustc_settings_path);
-    let (rustc_env, rustc_options) = rustc_settings
-        .rsplit_once(RUSTC_SETTINGS_SEP)
-        .unwrap_or_else(|| {
-            panic!("Could not find {RUSTC_SETTINGS_SEP_TEXT} in rustc settings: {rustc_settings}")
-        });
-    process_env(rustc_env);
+    let rustc_settings = read_file_utf8(rustc_settings_path)?;
+    let (rustc_env, rustc_options) =
+        rustc_settings
+            .rsplit_once(RUSTC_SETTINGS_SEP)
+            .ok_or_else(|| {
+                error!(
+                    "Could not find {RUSTC_SETTINGS_SEP_TEXT} in rustc settings: {rustc_settings}"
+                )
+            })?;
+    process_env(rustc_env)?;
     let mut args = vec!["rustc".to_owned()];
     rustc_options
         .split_ascii_whitespace()
         .for_each(|s| args.push(s.to_string()));
     last_args.iter().for_each(|arg| args.push(arg.clone()));
-    args
+    Ok(args)
 }

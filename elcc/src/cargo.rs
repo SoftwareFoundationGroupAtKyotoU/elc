@@ -1,7 +1,7 @@
 //! For using cargo.
 
 use crate::log::LogLevel;
-use crate::util::{AppliedTo as _, CommandExtra as _};
+use crate::util::{AppliedTo as _, CommandExtra as _, Result};
 use crate::{debug, report};
 use std::process::Command;
 
@@ -11,7 +11,7 @@ fn should_cargo_be_quiet() -> bool {
 }
 
 /// Runs cargo check.
-pub fn run_cargo_check() {
+pub fn run_cargo_check() -> Result<()> {
     report!("...Running `cargo check` to check the whole crate...");
     Command::new("cargo")
         .arg("check")
@@ -22,11 +22,11 @@ pub fn run_cargo_check() {
                 command
             }
         })
-        .exec();
+        .exec()
 }
 
 /// Runs cargo check with -vv, returning stderr.
-pub fn run_cargo_check_vv() -> String {
+pub fn run_cargo_check_vv() -> Result<String> {
     report!("...Running `cargo check -vv` to obtain options...");
     let mut stderr = String::new();
     Command::new("cargo")
@@ -35,12 +35,12 @@ pub fn run_cargo_check_vv() -> String {
             debug!("{line}");
             stderr.push_str(&line);
             stderr.push('\n');
-        });
-    stderr
+        })?;
+    Ok(stderr)
 }
 
 /// Marks crate dirty.
-pub fn mark_crate_dirty() {
+pub fn mark_crate_dirty() -> Result<()> {
     report!("...Running `touch src/*.rs` to mark crate dirty...");
-    Command::new("bash").args(["-c", "touch src/*.rs"]).exec();
+    Command::new("bash").args(["-c", "touch src/*.rs"]).exec()
 }

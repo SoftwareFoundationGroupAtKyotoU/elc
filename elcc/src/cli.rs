@@ -1,6 +1,7 @@
 //! For the command-line interface.
 
 use crate::log::{LogFilter, LogFilterError, set_log_filter};
+use crate::util::Result;
 use crate::{debug, error, init, run};
 use clap::{ArgAction, Args, CommandFactory as _, Parser, Subcommand};
 use clap_complete::Shell;
@@ -84,7 +85,7 @@ pub struct CompleteArgs {
 }
 
 /// Calculates [`LogFilter`] from the verbosity.
-fn calc_log_filter(verbosity: Verbosity) -> Result<LogFilter, ()> {
+fn calc_log_filter(verbosity: Verbosity) -> Result<LogFilter> {
     let Verbosity { verbose, quiet } = verbosity;
     if verbose != 0 && quiet != 0 {
         error!("Should not set both -v/--verbose and -q/--quiet.");
@@ -99,23 +100,24 @@ fn calc_log_filter(verbosity: Verbosity) -> Result<LogFilter, ()> {
 }
 
 /// Detects the shell
-pub fn detect_shell() -> Shell {
-    let shell = Shell::from_env().unwrap_or_else(|| panic!("Could not detect a supported shell"));
+pub fn detect_shell() -> Result<Shell> {
+    let shell = Shell::from_env().ok_or_else(|| error!("Could not detect a supported shell"))?;
     debug!("Detected a supported shell: {shell}");
-    shell
+    Ok(shell)
 }
 
 /// Generates completion.
-pub fn complete(args: &CompleteArgs) {
+pub fn complete(args: &CompleteArgs) -> Result<()> {
     let shell = match args.shell {
         Some(shell) => shell,
-        None => detect_shell(),
+        None => detect_shell()?,
     };
-    generate(shell, &mut Cli::command(), &args.name, &mut stdout())
+    generate(shell, &mut Cli::command(), &args.name, &mut stdout());
+    Ok(())
 }
 
 /// Parses and executes a `Cli`.
-pub fn exec_cli() -> Result<(), ()> {
+pub fn exec_cli() -> Result<()> {
     let cli = Cli::parse();
     if !cli.plain {
         yansi::enable();
@@ -131,5 +133,4 @@ pub fn exec_cli() -> Result<(), ()> {
         Command::Run(args) => run::run(args),
         Command::Complete(args) => complete(args),
     }
-    Ok(())
 }
