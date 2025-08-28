@@ -1,11 +1,17 @@
 //! For the rustc settings.
 
 use crate::cargo::{mark_crate_dirty, run_cargo_check_vv};
-use crate::util::{get_time_modified, read_file_utf8};
+use crate::util::{exists_path, get_time_modified, read_file_utf8};
 use crate::{debug, report};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{env, fs};
+
+/// Path to the Cargo manifest file.
+const CARGO_MANIFEST_PATH: &'static str = "Cargo.toml";
+
+/// Path to the Cargo lock file.
+const CARGO_LOCK_PATH: &'static str = "Cargo.lock";
 
 /// Checks if the rustc settings file is out of date.
 pub fn is_rustc_settings_old(rustc_settings_path: &str) -> bool {
@@ -13,14 +19,16 @@ pub fn is_rustc_settings_old(rustc_settings_path: &str) -> bool {
         None => return false,
         Some(base_time) => base_time,
     };
-    let res = match get_time_modified("Cargo.toml") {
-        None => false,
-        Some(cargo_toml_time) => base_time < cargo_toml_time,
-    } || match get_time_modified("Cargo.lock") {
-        None => false,
-        Some(cargo_lock_time) => base_time < cargo_lock_time,
-    };
-    res
+    exists_path(CARGO_MANIFEST_PATH)
+        && match get_time_modified(CARGO_MANIFEST_PATH) {
+            None => false,
+            Some(cargo_toml_time) => base_time < cargo_toml_time,
+        }
+        || exists_path(CARGO_LOCK_PATH)
+            && match get_time_modified(CARGO_LOCK_PATH) {
+                None => false,
+                Some(cargo_lock_time) => base_time < cargo_lock_time,
+            }
 }
 
 /// Separator between the environment arguments and options.
