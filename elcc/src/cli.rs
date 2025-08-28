@@ -99,7 +99,7 @@ fn calc_log_filter(verbosity: Verbosity) -> Result<LogFilter> {
     })
 }
 
-/// Detects the shell
+/// Detects the shell.
 pub fn detect_shell() -> Result<Shell> {
     let shell = Shell::from_env().ok_or_else(|| error!("Could not detect a supported shell"))?;
     debug!("Detected a supported shell: {shell}");
