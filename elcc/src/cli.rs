@@ -12,44 +12,44 @@ use std::io::{IsTerminal, stderr, stdout};
 /// Command-line interface for [`clap`].
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None, disable_help_subcommand = true)]
-pub struct Cli {
+struct Cli {
     /// Verbosity.
     #[command(flatten)]
-    pub verbosity: Verbosity,
+    verbosity: Verbosity,
     /// Force ANSI styling of stdout.
     #[arg(long, global = true, conflicts_with("no_ansi_out"))]
-    pub force_ansi_out: bool,
+    force_ansi_out: bool,
     /// Suppress ANSI styling of stdout.
     #[arg(long, global = true)]
-    pub no_ansi_out: bool,
+    no_ansi_out: bool,
     /// Force ANSI styling of stderr.
     #[arg(long, global = true, conflicts_with("no_ansi_err"))]
-    pub force_ansi_err: bool,
+    force_ansi_err: bool,
     /// Suppress ANSI styling of stderr.
     #[arg(long, global = true)]
-    pub no_ansi_err: bool,
+    no_ansi_err: bool,
     /// Command.
     #[command(subcommand)]
-    pub command: Command,
+    command: Command,
 }
 
 /// Verbosity.
 #[derive(Args, Debug, Clone, Copy)]
-pub struct Verbosity {
+struct Verbosity {
     /// Make elcc more verbose.
     #[arg(short, long, global = true, action = ArgAction::Count)]
-    pub verbose: u8,
+    verbose: u8,
     /// Make elcc more quiet.
     #[arg(short, long, global = true, action = ArgAction::Count)]
-    pub quiet: u8,
+    quiet: u8,
 }
 
 /// Default file path for rustc settings.
-pub const DEFAULT_RUSTC_SETTINGS_PATH: &str = "target/debug/elcc-rustc-settings";
+const DEFAULT_RUSTC_SETTINGS_PATH: &str = "target/debug/elcc-rustc-settings";
 
 /// Subcommand for [`clap`].
 #[derive(Subcommand, Debug)]
-pub enum Command {
+enum Command {
     /// Initialize.
     Init(InitArgs),
     /// Run the static verifier.
@@ -113,14 +113,14 @@ fn calc_log_filter(verbosity: Verbosity) -> Result<LogFilter> {
 }
 
 /// Detects the shell.
-pub fn detect_shell() -> Result<Shell> {
+fn detect_shell() -> Result<Shell> {
     let shell = Shell::from_env().ok_or_else(|| error!("Could not detect a supported shell"))?;
     debug!("Detected a supported shell: {shell}");
     Ok(shell)
 }
 
 /// Generates completion.
-pub fn complete(args: &CompleteArgs) -> Result<()> {
+fn complete(args: &CompleteArgs) -> Result<()> {
     let shell = match args.shell {
         Some(shell) => shell,
         None => detect_shell()?,
