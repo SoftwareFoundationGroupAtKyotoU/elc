@@ -83,7 +83,7 @@ fn print_mir_keys<F: FnMut(DefId) -> bool>(tcx: TyCtxt, pred: &mut F) {
     for &id in tcx.mir_keys(()) {
         let id = id.to_def_id();
         if !pred(id) {
-            return;
+            continue;
         }
         debug!("    {:?}", tcx.def_path(id));
         println!("      {}", tcx.def_path_str(id));
