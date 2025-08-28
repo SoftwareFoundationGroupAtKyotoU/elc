@@ -64,10 +64,13 @@ pub fn run(run_args: &RunArgs) -> Result<()> {
 }
 
 /// Gets a source file.
-fn get_source_file(source_map: &SourceMap, path: &str) -> Result<Arc<SourceFile>> {
+fn get_source_file(source_map: &SourceMap, path: &str) -> Option<Arc<SourceFile>> {
     source_map
         .get_source_file(&FileName::Real(RealFileName::LocalPath(path.into())))
-        .ok_or_else(|| warn!("Could not find a source file at `{path}`!"))
+        .or_else(|| {
+            warn!("Could not find a source file at `{path}`!");
+            None
+        })
 }
 
 /// Returns a span of a source file.
@@ -101,16 +104,24 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Result<bool> 
             }
         }
         ["src", path] => {
-            let source_file = get_source_file(&source_map, path)?;
-            let src = source_file.src.clone().expect("Source not available!");
+            let Some(source_file) = get_source_file(&source_map, path) else {
+                return Ok(false);
+            };
+            let src = source_file
+                .src
+                .clone()
+                .ok_or_else(|| error!("Source not available!"))?;
             println!("    Source:\n{}", src);
         }
         ["mir", name] => {
-            let &id = tcx
+            let Some(&id) = tcx
                 .mir_keys(())
                 .iter()
                 .find(|&&id| &tcx.def_path_str(id) == name)
-                .ok_or_else(|| warn!("Could not find an MIR key whose name is `{name}`."))?;
+            else {
+                warn!("Could not find an MIR key whose name is `{name}`.");
+                return Ok(false);
+            };
             write_mir_fn(
                 tcx,
                 tcx.optimized_mir(id),
@@ -125,7 +136,10 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Result<bool> 
             print_mir_keys(tcx, &mut |_| true);
         }
         ["mirs", path] => {
-            let file_span = source_file_span(get_source_file(&source_map, path)?.as_ref());
+            let Some(source_file) = get_source_file(&source_map, path) else {
+                return Ok(false);
+            };
+            let file_span = source_file_span(&source_file);
             println!("    MIR keys at `{path}`:");
             print_mir_keys(tcx, &mut |id| file_span.contains(tcx.def_span(id)));
         }
@@ -141,7 +155,7 @@ fn exec_query(tcx: TyCtxt, source_map: &SourceMap, input: &str) -> Result<bool> 
 /// Body executed by [`after_analysis`](Callbacks::after_analysis).
 fn run_body(tcx: TyCtxt) -> Result<()> {
     report!("Running elcc...");
-    let source_map = get_source_map().expect("Getting the source map failed");
+    let source_map = get_source_map().ok_or_else(|| warn!("Getting the source map failed"))?;
     loop {
         xprint!("  <bold>Enter a query</bold>: ");
         flush_stdout()?;
