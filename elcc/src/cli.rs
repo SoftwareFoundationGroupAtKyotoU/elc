@@ -15,9 +15,9 @@ pub struct Cli {
     /// Verbosity.
     #[command(flatten)]
     pub verbosity: Verbosity,
-    /// Choose plain non-ANSI logging.
+    /// Suppress ANSI styling of logs.
     #[arg(long, global = true, default_value_t = !stderr().is_terminal())]
-    pub plain: bool,
+    pub no_ansi: bool,
     /// Command.
     #[command(subcommand)]
     pub command: Command,
@@ -119,7 +119,7 @@ pub fn complete(args: &CompleteArgs) -> Result<()> {
 /// Parses and executes a `Cli`.
 pub fn exec_cli() -> Result<()> {
     let cli = Cli::parse();
-    if !cli.plain {
+    if !cli.no_ansi {
         yansi::enable();
     } else {
         yansi::disable();
