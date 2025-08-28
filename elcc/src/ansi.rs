@@ -28,7 +28,7 @@ pub fn get_ansi_stderr() -> bool {
     ANSI_STDERR.load(Ordering::Acquire)
 }
 
-/// Macro applying [`cstr`] or [`untagged`] to the first argument depending on [`get_ansi_stdout`].
+/// Macro application with conditional ANSI styling on stdout.
 #[macro_export]
 macro_rules! xapply_stdout {
     ($macro:path; $str:tt $($args:tt)*) => {
@@ -41,7 +41,7 @@ macro_rules! xapply_stdout {
 
 }
 
-/// Macro application with conditional ANSI styling on stdout.
+/// Macro application with conditional ANSI styling on stderr.
 #[macro_export]
 macro_rules! xapply_stderr {
     ($macro:path; $str:tt $($args:tt)*) => {

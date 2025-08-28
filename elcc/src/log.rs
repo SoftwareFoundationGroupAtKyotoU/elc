@@ -102,7 +102,7 @@ macro_rules! is_enabled {
     };
 }
 
-/// Outputs an error log. Body of the [`error!`] macro.
+/// Outputs an error log. Body of the [`error`](crate::error) macro.
 #[inline]
 pub fn output_error(args: Arguments) {
     xeprintln!("<bold><red>Error</red>: {}</bold>", args);
@@ -118,7 +118,7 @@ macro_rules! error {
     }
 }
 
-/// Outputs a warning log. Body of the [`warn!`] macro.
+/// Outputs a warning log. Body of the [`warn`](crate::warn) macro.
 #[inline]
 pub fn output_warn(args: Arguments) {
     xeprintln!("<bold>Warning: {}</bold>", args);
@@ -134,7 +134,7 @@ macro_rules! warn {
     }
 }
 
-/// Outputs an information log. Body of the [`info!`] macro.
+/// Outputs an information log. Body of the [`info`](crate::info) macro.
 #[inline]
 pub fn output_info(args: Arguments) {
     xeprintln!("<bold>Info</bold>: {}", args);
@@ -150,7 +150,7 @@ macro_rules! info {
     }
 }
 
-/// Outputs a report log. Body of the [`report!`] macro.
+/// Outputs a report log. Body of the [`report`](crate::report) macro.
 #[inline]
 pub fn output_report(args: Arguments) {
     eprintln!("+ {args}");
@@ -166,7 +166,7 @@ macro_rules! report {
     }
 }
 
-/// Outputs a debug log. Body of the [`debug!`] macro.
+/// Outputs a debug log. Body of the [`debug`](crate::debug) macro.
 #[inline]
 pub fn output_debug(args: Arguments) {
     xeprintln!("<dim># {}</dim>", args);
