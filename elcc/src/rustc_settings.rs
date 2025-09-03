@@ -3,8 +3,8 @@
 use crate::cargo::{mark_crate_dirty, run_cargo_check_vv};
 use crate::util::{Result, exists_path, get_time_modified, read_file_utf8};
 use crate::{debug, error, report};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 use std::{env, fs};
 
 /// Path to the Cargo manifest file.
@@ -30,11 +30,9 @@ const RUSTC_SETTINGS_SEP_TEXT: &str = "\"\\n[RUSTC]\\n\"";
 
 /// Modifies rustc arguments.
 fn modify_rustc_args(rustc_args: String) -> String {
-    lazy_static! {
-        static ref JSON_REGEX: Regex = Regex::new("--json=\\S* ").unwrap();
-    }
     // Disables json output
     let rustc_options = rustc_args.replace("--error-format=json ", "");
+    static JSON_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("--json=\\S* ").unwrap());
     let rustc_options = JSON_REGEX.replace_all(&rustc_options, "");
     // Hacky replacement: A workaround
     rustc_options.replace(", ", ",").replace("'", "")
@@ -43,10 +41,9 @@ fn modify_rustc_args(rustc_args: String) -> String {
 /// Gets rustc settings.
 fn get_rustc_settings() -> Result<String> {
     let stderr = run_cargo_check_vv()?;
-    lazy_static! {
-        static ref STDERR_REGEX: Regex =
-            Regex::new("\\n     Running `((?:.|\\n)+) (\\S*?rustc) (.+?)`\\n").unwrap();
-    }
+    static STDERR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("\\n     Running `((?:.|\\n)+) (\\S*?rustc) (.+?)`\\n").unwrap()
+    });
     let (_, [rustc_env, rustc_name, rustc_args]) = STDERR_REGEX
         .captures(&stderr)
         .ok_or_else(|| error!("Could not find a rustc command in:\n{stderr}"))?
