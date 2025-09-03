@@ -7,7 +7,7 @@ description = "Elc compiler based on rustc."
 
 [dependencies]
 color-print = "0.3.7"
-clap = { version = "4.5.46", features = ["derive"] }
+clap = { version = "4.5.47", features = ["derive"] }
 clap_complete = "4.5.57"
 regex = "1.11.2"
 
