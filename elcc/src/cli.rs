@@ -7,7 +7,7 @@ use crate::{debug, error, init, run};
 use clap::{ArgAction, Args, CommandFactory as _, Parser, Subcommand};
 use clap_complete::Shell;
 use clap_complete::aot::{ValueHint, generate};
-use std::io::{IsTerminal, stderr, stdout};
+use std::io::{IsTerminal as _, stderr, stdout};
 
 /// Command-line interface for [`clap`].
 #[derive(Parser, Debug)]
