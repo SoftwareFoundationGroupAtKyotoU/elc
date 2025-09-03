@@ -1,13 +1,13 @@
 //! For using cargo.
 
-use crate::log::LogLevel;
+use crate::is_log_enabled;
 use crate::util::{AppliedTo as _, CommandExtra as _, Result};
 use crate::{debug, report};
 use std::process::Command;
 
 /// Checks if cargo should be quiet.
 fn should_cargo_be_quiet() -> bool {
-    !LogLevel::Report.is_enabled()
+    !is_log_enabled!(Report)
 }
 
 /// Runs cargo check.

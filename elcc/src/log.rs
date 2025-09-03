@@ -96,7 +96,7 @@ impl LogLevel {
 
 /// Utility macro for checking if the log level is enabled.
 #[macro_export]
-macro_rules! is_enabled {
+macro_rules! is_log_enabled {
     ($level:ident) => {
         crate::log::LogLevel::$level.is_enabled()
     };
@@ -112,7 +112,7 @@ pub fn output_error(args: Arguments) {
 #[macro_export]
 macro_rules! error {
     ($($args:tt)*) => {
-        if crate::is_enabled!(Error) {
+        if crate::is_log_enabled!(Error) {
             crate::log::output_error(format_args!($($args)*));
         }
     }
@@ -128,7 +128,7 @@ pub fn output_warn(args: Arguments) {
 #[macro_export]
 macro_rules! warn {
     ($($args:tt)*) => {
-        if crate::is_enabled!(Warn) {
+        if crate::is_log_enabled!(Warn) {
             crate::log::output_warn(format_args!($($args)*));
         }
     }
@@ -144,7 +144,7 @@ pub fn output_info(args: Arguments) {
 #[macro_export]
 macro_rules! info {
     ($($args:tt)*) => {
-        if crate::is_enabled!(Info) {
+        if crate::is_log_enabled!(Info) {
             crate::log::output_info(format_args!($($args)*));
         }
     }
@@ -160,7 +160,7 @@ pub fn output_report(args: Arguments) {
 #[macro_export]
 macro_rules! report {
     ($($args:tt)*) => {
-        if crate::is_enabled!(Report) {
+        if crate::is_log_enabled!(Report) {
             crate::log::output_report(format_args!($($args)*));
         }
     }
@@ -176,7 +176,7 @@ pub fn output_debug(args: Arguments) {
 #[macro_export]
 macro_rules! debug {
     ($($args:tt)*) => {
-        if crate::is_enabled!(Debug) {
+        if crate::is_log_enabled!(Debug) {
             crate::log::output_debug(format_args!($($args)*));
         }
     }
